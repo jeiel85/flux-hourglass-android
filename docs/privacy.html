@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#000000" />
+    <title>Flux Hourglass — Privacy Policy</title>
+    <meta
+      name="description"
+      content="Privacy policy for Flux Hourglass, a minimalist Android timer. No data is collected, transmitted, or shared. The only permission requested is VIBRATE."
+    />
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --bg: #000;
+        --fg: #e9e9e9;
+        --muted: #8a8a8a;
+        --hair: rgba(255, 255, 255, 0.08);
+        --accent: #fff;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+          "Inter", "Pretendard", "Noto Sans KR", sans-serif;
+        font-weight: 300;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        line-height: 1.7;
+      }
+      a {
+        color: var(--fg);
+        text-decoration: none;
+        border-bottom: 1px solid var(--hair);
+        transition: border-color 0.15s ease;
+      }
+      a:hover { border-bottom-color: var(--accent); }
+      code {
+        font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+        font-size: 0.9em;
+        color: #cfcfcf;
+      }
+      .wrap {
+        max-width: 720px;
+        padding: 64px 28px 96px;
+        margin: 0 auto;
+      }
+      header.hero { margin-bottom: 64px; }
+      .hero h1 {
+        font-size: 32px;
+        font-weight: 200;
+        letter-spacing: 0.18em;
+        margin: 0 0 14px;
+        text-transform: uppercase;
+      }
+      .hero p.lead {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .hero .meta {
+        font-size: 11px;
+        color: var(--muted);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        margin: 0 0 28px;
+      }
+      section { margin: 0 0 56px; }
+      h2 {
+        font-size: 12px;
+        font-weight: 400;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: var(--muted);
+        border-bottom: 1px solid var(--hair);
+        padding-bottom: 12px;
+        margin: 0 0 24px;
+      }
+      h3 {
+        font-size: 14px;
+        font-weight: 400;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin: 24px 0 8px;
+        color: var(--accent);
+      }
+      p, li {
+        margin: 0 0 12px;
+        color: var(--fg);
+        font-size: 15px;
+      }
+      p.muted, li.muted { color: var(--muted); font-size: 14px; }
+      ul { padding-left: 1.2em; margin: 0 0 18px; }
+      .kr h2 { letter-spacing: 0.2em; }
+
+      footer {
+        margin-top: 80px;
+        padding-top: 24px;
+        border-top: 1px solid var(--hair);
+        color: var(--muted);
+        font-size: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      footer a { color: var(--muted); border-bottom-color: transparent; }
+      footer a:hover { color: var(--fg); }
+
+      @media (max-width: 720px) {
+        .wrap { padding: 40px 22px 64px; }
+        .hero h1 { font-size: 26px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="hero">
+        <p class="meta">Flux Hourglass · com.flux.hourglass</p>
+        <h1>Privacy Policy</h1>
+        <p class="lead">
+          Flux Hourglass collects nothing, transmits nothing, and shares nothing.
+          This page documents that in plain language, in English and Korean.
+        </p>
+      </header>
+
+      <section>
+        <h2>English</h2>
+
+        <h3>1. Summary</h3>
+        <p>
+          Flux Hourglass (the &ldquo;App&rdquo;, package
+          <code>com.flux.hourglass</code>) is an offline Android timer. It does
+          not collect, store off-device, transmit, sell, or share any personal
+          information or usage data of any kind.
+        </p>
+
+        <h3>2. Data we collect</h3>
+        <p><strong>None.</strong> Specifically:</p>
+        <ul>
+          <li>No account, sign-up, or login.</li>
+          <li>No analytics, telemetry, crash reporting, or usage metrics.</li>
+          <li>No advertising SDKs, no ad identifiers, no tracking pixels.</li>
+          <li>
+            No location, contacts, photos, microphone, camera, calendar, files,
+            or device identifiers are read.
+          </li>
+          <li>
+            No third-party SDK that performs data collection is bundled in the
+            app.
+          </li>
+        </ul>
+
+        <h3>3. Data we store on your device</h3>
+        <p>
+          The App writes a single small preference file on your device that
+          remembers the last hours / minutes / seconds you started a timer with,
+          so the pickers are pre-seeded on the next launch. This data:
+        </p>
+        <ul>
+          <li>Stays on your device in the app&rsquo;s private storage.</li>
+          <li>Is never transmitted off the device.</li>
+          <li>
+            Is removed automatically when you uninstall the App or clear its
+            storage from Android Settings.
+          </li>
+        </ul>
+
+        <h3>4. Network access</h3>
+        <p>
+          The App does not request the <code>INTERNET</code> permission and
+          makes no network requests of any kind. It cannot contact a server
+          even if it wanted to.
+        </p>
+
+        <h3>5. Permissions</h3>
+        <p>
+          The App requests exactly one Android permission:
+          <code>android.permission.VIBRATE</code>, used to vibrate the device
+          when the timer finishes. No other permissions are declared or
+          requested.
+        </p>
+
+        <h3>6. Children&rsquo;s privacy</h3>
+        <p>
+          Because the App collects no personal information from anyone, it
+          collects no personal information from children. It is suitable for
+          users of all ages.
+        </p>
+
+        <h3>7. Third parties</h3>
+        <p>
+          The App contains no third-party advertising, no third-party analytics,
+          and no third-party social SDKs. The only third party involved in
+          distribution is Google Play itself, which is governed by
+          <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a>.
+        </p>
+
+        <h3>8. Changes to this policy</h3>
+        <p>
+          If this policy changes, the updated version will be published at the
+          same URL with a new &ldquo;Last updated&rdquo; date below. Material
+          changes will be reflected in the App&rsquo;s release notes on Google
+          Play.
+        </p>
+
+        <h3>9. Contact</h3>
+        <p>
+          Questions about this policy can be sent to
+          <a href="mailto:okpos.cs1.2@gmail.com">okpos.cs1.2@gmail.com</a>.
+        </p>
+
+        <p class="muted">Last updated: 2026-05-27</p>
+      </section>
+
+      <section id="kr" class="kr">
+        <h2>한국어</h2>
+
+        <h3>1. 요약</h3>
+        <p>
+          아워글래스(Flux Hourglass, 패키지명
+          <code>com.flux.hourglass</code>, 이하 &ldquo;본 앱&rdquo;)는 오프라인
+          전용 안드로이드 타이머입니다. 어떠한 개인정보 또는 사용 데이터도
+          수집·저장·전송·공유·판매하지 않습니다.
+        </p>
+
+        <h3>2. 수집하는 정보</h3>
+        <p><strong>없습니다.</strong> 구체적으로 다음 사항을 보장합니다.</p>
+        <ul>
+          <li>계정 가입, 로그인 절차가 없습니다.</li>
+          <li>
+            분석(Analytics), 텔레메트리, 크래시 리포트, 사용 통계 SDK를 일절
+            포함하지 않습니다.
+          </li>
+          <li>
+            광고 SDK, 광고 ID, 트래킹 픽셀이 일절 포함되지 않습니다.
+          </li>
+          <li>
+            위치, 연락처, 사진, 마이크, 카메라, 캘린더, 파일, 기기 식별자에
+            접근하지 않습니다.
+          </li>
+          <li>
+            데이터를 수집하는 어떤 제3자 SDK도 앱에 포함되어 있지 않습니다.
+          </li>
+        </ul>
+
+        <h3>3. 기기 내부에 저장되는 정보</h3>
+        <p>
+          본 앱은 사용자가 마지막으로 시작했던 시·분·초 값을 기억하기 위해
+          단일 환경설정 파일을 기기 내부에 저장합니다. 이 정보는 다음과 같이
+          처리됩니다.
+        </p>
+        <ul>
+          <li>앱 전용 내부 저장소에만 남으며 기기 외부로 절대 전송되지 않습니다.</li>
+          <li>
+            본 앱을 삭제하거나 안드로이드 설정에서 앱 저장공간을 지우면 함께
+            제거됩니다.
+          </li>
+        </ul>
+
+        <h3>4. 네트워크 접근</h3>
+        <p>
+          본 앱은 <code>INTERNET</code> 권한을 요청하지 않으며 어떠한 네트워크
+          요청도 수행하지 않습니다. 구조적으로 외부 서버와 통신할 수 없습니다.
+        </p>
+
+        <h3>5. 권한</h3>
+        <p>
+          본 앱이 요청하는 안드로이드 권한은
+          <code>android.permission.VIBRATE</code>(진동) 한 가지뿐이며, 타이머
+          종료 시 기기를 진동시키기 위해서만 사용합니다. 그 외 어떤 권한도
+          선언·요청하지 않습니다.
+        </p>
+
+        <h3>6. 아동의 개인정보</h3>
+        <p>
+          본 앱은 어떤 이용자로부터도 개인정보를 수집하지 않으므로 아동의
+          개인정보 또한 수집하지 않습니다. 전 연령이 이용할 수 있습니다.
+        </p>
+
+        <h3>7. 제3자</h3>
+        <p>
+          본 앱에는 제3자 광고, 제3자 분석, 제3자 소셜 SDK가 일절 포함되지
+          않습니다. 배포 과정에서 관여하는 유일한 제3자는 Google Play이며,
+          이는
+          <a href="https://policies.google.com/privacy?hl=ko">Google의 개인정보처리방침</a>을
+          따릅니다.
+        </p>
+
+        <h3>8. 정책 변경</h3>
+        <p>
+          본 정책이 변경되는 경우 동일한 URL에 갱신된 버전과 갱신일자가
+          게시됩니다. 중대한 변경 사항은 Google Play의 출시 노트에도 함께
+          반영됩니다.
+        </p>
+
+        <h3>9. 문의</h3>
+        <p>
+          본 정책에 대한 문의는
+          <a href="mailto:okpos.cs1.2@gmail.com">okpos.cs1.2@gmail.com</a>으로
+          보내주세요.
+        </p>
+
+        <p class="muted">최종 갱신일: 2026-05-27</p>
+      </section>
+
+      <footer>
+        <span>© jeiel85 · No analytics, no ads, no tracking.</span>
+        <span>
+          <a href="./">← Home</a>
+          &nbsp;·&nbsp;
+          <a href="https://github.com/jeiel85/flux-hourglass-android">GitHub</a>
+        </span>
+      </footer>
+    </div>
+  </body>
+</html>
