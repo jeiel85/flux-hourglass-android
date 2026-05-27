@@ -1,0 +1,25 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Sophisticated Abstract Hourglass Outline -->
+    <path
+        android:pathData="M 34,30 L 74,30 L 59,54 L 74,78 L 34,78 L 49,54 Z"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineJoin="miter"
+        android:strokeLineCap="butt"
+        android:fillColor="#00000000" />
+        
+    <!-- Upper Funnel Sand (Minimal Draining representation) -->
+    <path
+        android:pathData="M 40,38 L 68,38 L 54,54 Z"
+        android:fillColor="#B3FFFFFF" />
+        
+    <!-- Lower Pile Sand (Minimal Accumulation representation) -->
+    <path
+        android:pathData="M 36,74 L 72,74 L 64,61 L 54,66 L 44,61 Z"
+        android:fillColor="#E6FFFFFF" />
+</vector>
