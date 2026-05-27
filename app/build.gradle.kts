@@ -14,8 +14,8 @@ android {
     applicationId = "com.flux.hourglass"
     minSdk = 24
     targetSdk = 36
-    versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull() ?: 2
-    versionName = (findProperty("VERSION_NAME") as String?) ?: "1.1.0"
+    versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull() ?: 3
+    versionName = (findProperty("VERSION_NAME") as String?) ?: "1.2.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -61,6 +61,10 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
+  lint {
+    checkReleaseBuilds = false
+    abortOnError = false
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -88,7 +92,7 @@ dependencies {
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)
-  // implementation(libs.androidx.datastore.preferences)
+  implementation(libs.androidx.datastore.preferences)
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)

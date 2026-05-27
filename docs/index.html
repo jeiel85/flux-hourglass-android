@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#000000" />
+    <title>Flux Hourglass — minimalist particle-physics timer for Android</title>
+    <meta
+      name="description"
+      content="Flux Hourglass is a minimalist Android timer with a particle-physics hourglass. Black-and-white surface, accelerometer-driven sand, no network, no analytics."
+    />
+    <meta property="og:title" content="Flux Hourglass" />
+    <meta
+      property="og:description"
+      content="A minimalist particle-physics hourglass timer for Android. Black-and-white, no network, no ads."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="assets/setup.png" />
+    <meta property="og:url" content="https://jeiel85.github.io/flux-hourglass-android/" />
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --bg: #000;
+        --fg: #e9e9e9;
+        --muted: #8a8a8a;
+        --hair: rgba(255, 255, 255, 0.08);
+        --accent: #fff;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+          "Inter", "Pretendard", "Noto Sans KR", sans-serif;
+        font-weight: 300;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        line-height: 1.6;
+      }
+      a {
+        color: var(--fg);
+        text-decoration: none;
+        border-bottom: 1px solid var(--hair);
+        transition: border-color 0.15s ease;
+      }
+      a:hover { border-bottom-color: var(--accent); }
+      code {
+        font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+        font-size: 0.9em;
+        color: #cfcfcf;
+      }
+      .wrap {
+        max-width: 880px;
+        padding: 64px 28px 96px;
+        margin: 0 auto;
+      }
+      header.hero {
+        display: grid;
+        grid-template-columns: 1fr 280px;
+        gap: 56px;
+        align-items: center;
+        margin-bottom: 96px;
+      }
+      .hero h1 {
+        font-size: 42px;
+        font-weight: 200;
+        letter-spacing: 0.18em;
+        margin: 0 0 18px;
+        text-transform: uppercase;
+      }
+      .hero p.lead {
+        font-size: 16px;
+        color: var(--muted);
+        max-width: 36ch;
+        margin: 0 0 32px;
+      }
+      .hero img {
+        width: 100%;
+        max-width: 280px;
+        border: 1px solid var(--hair);
+        display: block;
+      }
+      .cta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        margin-top: 8px;
+      }
+      .cta a {
+        font-size: 12px;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        padding: 12px 20px;
+        border: 1px solid var(--hair);
+      }
+      .cta a:hover { border-color: var(--accent); }
+
+      section { margin: 0 0 84px; }
+      h2 {
+        font-size: 12px;
+        font-weight: 400;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: var(--muted);
+        border-bottom: 1px solid var(--hair);
+        padding-bottom: 12px;
+        margin: 0 0 28px;
+      }
+      .features {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 28px 40px;
+      }
+      .features h3 {
+        font-size: 14px;
+        font-weight: 400;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin: 0 0 6px;
+        color: var(--accent);
+      }
+      .features p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      table.versions {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      table.versions th,
+      table.versions td {
+        text-align: left;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--hair);
+      }
+      table.versions th {
+        font-weight: 400;
+        color: var(--muted);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-size: 11px;
+      }
+      table.versions td:first-child { width: 90px; }
+      table.versions td:nth-child(2) { width: 130px; color: var(--muted); }
+
+      .kr h2,
+      .kr h3 { letter-spacing: 0.02em; }
+      .kr h2 { letter-spacing: 0.2em; }
+
+      footer {
+        margin-top: 96px;
+        padding-top: 28px;
+        border-top: 1px solid var(--hair);
+        color: var(--muted);
+        font-size: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      footer a { color: var(--muted); border-bottom-color: transparent; }
+      footer a:hover { color: var(--fg); }
+
+      @media (max-width: 720px) {
+        .wrap { padding: 40px 22px 64px; }
+        header.hero {
+          grid-template-columns: 1fr;
+          gap: 32px;
+          margin-bottom: 72px;
+        }
+        .hero h1 { font-size: 32px; }
+        .hero img {
+          max-width: 220px;
+          margin: 0 auto;
+        }
+        .features { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="hero">
+        <div>
+          <h1>Flux Hourglass</h1>
+          <p class="lead">
+            An ultra-minimalist particle-physics hourglass timer for Android.
+            Real sand falls, piles, and slumps under the device's own gravity.
+            No network, no analytics, no ads.
+          </p>
+          <div class="cta">
+            <a href="https://github.com/jeiel85/flux-hourglass-android">Source</a>
+            <a href="https://github.com/jeiel85/flux-hourglass-android/releases">Releases</a>
+            <a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/CHANGELOG.md">Changelog</a>
+            <a href="#kr">한국어</a>
+          </div>
+        </div>
+        <img src="assets/setup.png" alt="Flux Hourglass setup screen" />
+      </header>
+
+      <section>
+        <h2>What it is</h2>
+        <div class="features">
+          <div>
+            <h3>Particle hourglass</h3>
+            <p>
+              Each grain is an independent particle that falls, collides, and is
+              absorbed into a sand pile that grows toward 50&nbsp;% of the screen
+              as the timer ends.
+            </p>
+          </div>
+          <div>
+            <h3>Tilt-aware sand</h3>
+            <p>
+              The accelerometer feeds a live gravity vector into the slumping
+              pass — tip the phone and the pile pours toward the lower edge.
+            </p>
+          </div>
+          <div>
+            <h3>Touch to reveal time</h3>
+            <p>
+              Press anywhere while running to fade in the exact remaining
+              <code>HH : MM : SS</code>. Release to return to pure sand.
+            </p>
+          </div>
+          <div>
+            <h3>Quick presets</h3>
+            <p>
+              <code>1m</code> <code>3m</code> <code>5m</code> <code>10m</code>
+              <code>25m</code> <code>1h</code> seed the H&nbsp;R&nbsp;/&nbsp;M&nbsp;I&nbsp;N&nbsp;/&nbsp;S&nbsp;E&nbsp;C
+              pickers in a single tap.
+            </p>
+          </div>
+          <div>
+            <h3>Pause / Resume</h3>
+            <p>
+              Faint <code>P A U S E</code> opposite <code>R E S E T</code>; the
+              paused screen shows remaining time + percent left with a centered
+              <code>R E S U M E</code>.
+            </p>
+          </div>
+          <div>
+            <h3>Keep-screen-on while running</h3>
+            <p>
+              <code>FLAG_KEEP_SCREEN_ON</code> is set only during the Running
+              state and cleared the instant the timer pauses, finishes, or
+              resets.
+            </p>
+          </div>
+          <div>
+            <h3>Remembers your last duration</h3>
+            <p>
+              A <code>Preferences</code> DataStore persists the last started
+              H&nbsp;R&nbsp;/&nbsp;M&nbsp;I&nbsp;N&nbsp;/&nbsp;S&nbsp;E&nbsp;C so
+              pickers are pre-seeded on every launch.
+            </p>
+          </div>
+          <div>
+            <h3>Soft completion chime</h3>
+            <p>
+              A three-note <code>ToneGenerator</code> chime on the notification
+              stream plays alongside the vibration pulse — respects silent /
+              DnD.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Versions</h2>
+        <table class="versions">
+          <thead>
+            <tr>
+              <th>Version</th>
+              <th>Date</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1.2.0</strong></td>
+              <td>2026-05-27</td>
+              <td>
+                Completion chime + persisted last duration.
+                <a
+                  href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.2.0.md"
+                  >Notes&nbsp;→</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td><strong>1.1.0</strong></td>
+              <td>2026-05-27</td>
+              <td>
+                Quick presets, pause/resume, keep-screen-on.
+                <a
+                  href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.1.0.md"
+                  >Notes&nbsp;→</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td><strong>1.0.0</strong></td>
+              <td>2026-05-27</td>
+              <td>
+                Initial release — particle hourglass core.
+                <a
+                  href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.0.0.md"
+                  >Notes&nbsp;→</a
+                >
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Permissions</h2>
+        <p style="color: var(--muted); font-size: 14px; max-width: 60ch;">
+          <code>VIBRATE</code> only. No <code>INTERNET</code>, no location,
+          no camera, no storage. Nothing leaves the device.
+        </p>
+      </section>
+
+      <section id="kr" class="kr">
+        <h2>한국어</h2>
+        <div class="features">
+          <div>
+            <h3>입자 물리 모래시계</h3>
+            <p>
+              각 모래알이 독립 입자로 떨어지고 충돌하며 화면 절반 높이까지
+              쌓입니다. 단순한 애니메이션이 아니라 실시간 시뮬레이션입니다.
+            </p>
+          </div>
+          <div>
+            <h3>기울임 인식</h3>
+            <p>
+              가속도계가 중력 벡터를 실시간으로 넘기기 때문에, 기기를 기울이면
+              쌓인 모래가 낮은 쪽으로 쏠립니다.
+            </p>
+          </div>
+          <div>
+            <h3>꾹 누르면 시간 표시</h3>
+            <p>
+              실행 화면을 누르고 있는 동안만 정확한
+              <code>HH : MM : SS</code>가 떠오르고, 손을 떼면 다시
+              모래만 남습니다.
+            </p>
+          </div>
+          <div>
+            <h3>빠른 프리셋</h3>
+            <p>
+              <code>1m / 3m / 5m / 10m / 25m / 1h</code> 한 번 탭으로
+              시·분·초가 채워집니다. 버튼이 아니라 얇은 라벨로 표시돼
+              화면을 깨끗하게 유지합니다.
+            </p>
+          </div>
+          <div>
+            <h3>일시정지 · 재개</h3>
+            <p>
+              <code>P A U S E</code>로 그 시점에 멈추고, 일시정지 화면에서
+              남은 시간과 잔여 비율을 표시합니다. <code>R E S U M E</code>
+              누른 순간부터 다시 카운트다운.
+            </p>
+          </div>
+          <div>
+            <h3>실행 중 화면 켜짐</h3>
+            <p>
+              타이머가 도는 동안에만 화면이 꺼지지 않도록 플래그를 잡고,
+              일시정지·완료·리셋 즉시 해제합니다.
+            </p>
+          </div>
+          <div>
+            <h3>마지막 시간 기억</h3>
+            <p>
+              종료 후 다시 켜도 직전에 시작했던 시·분·초가 그대로
+              채워져 있어, 같은 시간을 반복해서 쓸 때 편합니다.
+            </p>
+          </div>
+          <div>
+            <h3>부드러운 완료음</h3>
+            <p>
+              종료 시 진동과 함께 세 음짜리 짧은 톤이 울립니다. 무음 /
+              방해금지 설정을 그대로 따르며, 추가 권한이 필요 없습니다.
+            </p>
+          </div>
+        </div>
+        <p style="color: var(--muted); font-size: 14px; margin-top: 28px;">
+          전체 변경 이력은
+          <a
+            href="https://github.com/jeiel85/flux-hourglass-android/blob/main/CHANGELOG.md"
+            >CHANGELOG</a
+          >에, 새 버전을 만드는 절차는
+          <a
+            href="https://github.com/jeiel85/flux-hourglass-android/blob/main/RELEASE.md"
+            >RELEASE</a
+          >에 정리되어 있습니다.
+        </p>
+      </section>
+
+      <footer>
+        <span>© jeiel85 · No analytics, no ads, no tracking.</span>
+        <span>
+          <a href="https://github.com/jeiel85/flux-hourglass-android">GitHub</a>
+        </span>
+      </footer>
+    </div>
+  </body>
+</html>

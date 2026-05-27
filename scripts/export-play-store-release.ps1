@@ -23,6 +23,21 @@ function Resolve-Version {
     return $Matches[1]
 }
 
+function Resolve-VersionCode {
+    $buildFile = Join-Path $PSScriptRoot "..\app\build.gradle.kts"
+    $codeLine = Select-String -Path $buildFile -Pattern 'versionCode\s*=' | Select-Object -First 1
+    if ($null -eq $codeLine) {
+        throw "Could not resolve versionCode from app/build.gradle.kts"
+    }
+    if ($codeLine.Line -match '\?:\s*(\d+)') {
+        return [int]$Matches[1]
+    }
+    if ($codeLine.Line -match '=\s*(\d+)') {
+        return [int]$Matches[1]
+    }
+    throw "Could not parse versionCode from line: $($codeLine.Line)"
+}
+
 function Resolve-DesktopPath {
     param([string]$ExplicitDesktopPath)
 
@@ -82,6 +97,7 @@ function Resolve-ArtifactPath {
 }
 
 $resolvedVersion = Resolve-Version -ExplicitVersion $Version
+$resolvedCode = Resolve-VersionCode
 $desktop = Resolve-DesktopPath -ExplicitDesktopPath $DesktopPath
 
 $sourceAab = Resolve-ArtifactPath -ExplicitPath $AabPath `
@@ -94,8 +110,9 @@ $sourceApk = Resolve-ArtifactPath -ExplicitPath $ApkPath `
     -Filter "*.apk" `
     -BuildCommand ".\gradlew.bat assembleRelease"
 
-$targetAab = Join-Path $desktop "flux-hourglass-v$resolvedVersion.aab"
-$targetApk = Join-Path $desktop "flux-hourglass-v$resolvedVersion.apk"
+$stem = "flux-hourglass-v$resolvedVersion-vc$resolvedCode"
+$targetAab = Join-Path $desktop "$stem.aab"
+$targetApk = Join-Path $desktop "$stem.apk"
 
 Copy-Item -LiteralPath $sourceAab -Destination $targetAab -Force
 Copy-Item -LiteralPath $sourceApk -Destination $targetApk -Force
@@ -103,12 +120,12 @@ Copy-Item -LiteralPath $sourceApk -Destination $targetApk -Force
 # Local mirror in repo so committers can quickly verify the build sizes
 $buildOutputs = Join-Path $PSScriptRoot "..\.build-outputs"
 New-Item -ItemType Directory -Force -Path $buildOutputs | Out-Null
-Copy-Item -LiteralPath $sourceAab -Destination (Join-Path $buildOutputs "flux-hourglass-v$resolvedVersion.aab") -Force
-Copy-Item -LiteralPath $sourceApk -Destination (Join-Path $buildOutputs "flux-hourglass-v$resolvedVersion.apk") -Force
+Copy-Item -LiteralPath $sourceAab -Destination (Join-Path $buildOutputs "$stem.aab") -Force
+Copy-Item -LiteralPath $sourceApk -Destination (Join-Path $buildOutputs "$stem.apk") -Force
 
 $notesPath = Join-Path $PSScriptRoot "..\play_store\release_notes\v$resolvedVersion.txt"
 if (Test-Path -LiteralPath $notesPath -PathType Leaf) {
-    $targetNotes = Join-Path $desktop "flux-hourglass-v$resolvedVersion-release-notes.txt"
+    $targetNotes = Join-Path $desktop "$stem-release-notes.txt"
     Copy-Item -LiteralPath $notesPath -Destination $targetNotes -Force
     Write-Host "Exported Play Store release notes: $targetNotes"
 }
