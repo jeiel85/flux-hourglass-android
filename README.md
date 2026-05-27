@@ -1,19 +1,50 @@
 # Flux Hourglass
 
-An ultra-minimalist particle physics hourglass timer for Android, built with
-Jetpack Compose Canvas and on-device accelerometer-driven sand physics.
+> An ultra-minimalist particle-physics hourglass timer for Android.
+> Pure black-and-white, no network, no analytics, no ads.
 
-- Set hours / minutes / seconds with drag-or-tap pickers.
-- Real sand falls and piles up in real time as the timer counts down.
-- Tilt the device — the pile of sand slumps under physical gravity.
-- Touch and hold to reveal exact remaining `HH : MM : SS` time.
-- Endless black-and-white minimalist surface; no network calls, no analytics.
+<p align="center">
+  <img src="docs/assets/setup.png" alt="Flux Hourglass setup screen" width="280">
+</p>
+
+<p align="center">
+  <a href="https://github.com/jeiel85/flux-hourglass-android/actions/workflows/android-ci.yml">
+    <img src="https://github.com/jeiel85/flux-hourglass-android/actions/workflows/android-ci.yml/badge.svg" alt="Android CI">
+  </a>
+  <a href="https://github.com/jeiel85/flux-hourglass-android/releases">
+    <img src="https://img.shields.io/github/v/release/jeiel85/flux-hourglass-android?include_prereleases&sort=semver" alt="Latest release">
+  </a>
+  <img src="https://img.shields.io/badge/min%20SDK-24-blue" alt="minSdk 24">
+  <img src="https://img.shields.io/badge/target%20SDK-36-blue" alt="targetSdk 36">
+</p>
+
+## Highlights
+
+- **Particle-physics hourglass.** Each grain is an independent particle that falls, collides, and is absorbed into a sand pile that grows toward 50% of the screen as the timer ends.
+- **Tilt-aware.** The accelerometer feeds a live gravity vector into the slumping pass — tip the phone and the pile pours toward the lower edge.
+- **Touch-to-reveal time.** Press anywhere on the running screen to fade in exact remaining `HH : MM : SS`; release to return to pure sand.
+- **Quick presets.** `1m / 3m / 5m / 10m / 25m / 1h` chips sit under the title and seed the H R / M I N / S E C pickers in one tap.
+- **Pause / Resume.** Faint `P A U S E` opposite `R E S E T`; the paused screen shows remaining time + percent left with a centered `R E S U M E`.
+- **Keep-screen-on while running.** Sets `FLAG_KEEP_SCREEN_ON` only during the Running state, cleared the instant the timer pauses, finishes, or resets.
+- **Remembers your last duration.** A `Preferences` DataStore persists the last started H R / M I N / S E C so pickers are pre-seeded on every launch.
+- **Soft completion chime.** A three-note `ToneGenerator` chime on the notification stream plays alongside the vibration pulse — respects silent / DnD.
+- **Zero side channels.** No network, no analytics, no ads, no permissions beyond `VIBRATE`.
+
+## Version history
+
+| Version | Date | Notes |
+|---------|------|-------|
+| [1.2.0](docs/releases/v1.2.0.md) | 2026-05-27 | Completion chime + persisted last duration |
+| [1.1.0](docs/releases/v1.1.0.md) | 2026-05-27 | Quick presets, pause/resume, keep-screen-on |
+| [1.0.0](docs/releases/v1.0.0.md) | 2026-05-27 | Initial release — particle hourglass core |
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the full log.
 
 ## Build
 
 Requirements:
 
-- Android Studio Hedgehog+ (or any IDE with Android Gradle Plugin 9.1 support)
+- Android Studio Hedgehog+ (Android Gradle Plugin 9.1)
 - JDK 21
 - Android SDK 36
 
@@ -21,41 +52,76 @@ Requirements:
 # Debug APK -> app/build/outputs/apk/debug/
 .\gradlew.bat assembleDebug
 
-# Run unit + screenshot tests
+# Unit + Roborazzi screenshot tests
 .\gradlew.bat test
 ```
 
-The repo ships `debug.keystore.base64`; running `certutil -decode
-debug.keystore.base64 debug.keystore` (already executed locally for committers)
-materializes the debug keystore so the debug build is signed with a stable
-SHA — useful for Firebase and Play Console debug uploads.
+The repo ships `debug.keystore.base64`. Decode it once with
+`certutil -decode debug.keystore.base64 debug.keystore` so debug builds are
+signed with a stable SHA.
 
 ## Release
 
-A signed release build needs four environment variables — `KEYSTORE_PATH`,
-`STORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` (the CI form also accepts
-`RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`).
-
-From PowerShell, a typical full release run looks like:
+A signed release needs four environment variables — `KEYSTORE_PATH`,
+`STORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` (CI also accepts the `RELEASE_*`
+variants). The end-to-end procedure is documented in [`RELEASE.md`](RELEASE.md).
 
 ```powershell
-$env:KEYSTORE_PATH = "$HOME\keystores\flux-hourglass-upload.jks"
+$env:KEYSTORE_PATH = "$HOME\.keystore\flux-hourglass-upload.jks"
 $env:STORE_PASSWORD = "***"
 $env:KEY_ALIAS = "upload"
 $env:KEY_PASSWORD = "***"
 
-.\gradlew.bat clean bundleRelease assembleRelease `
-    -PVERSION_NAME=1.0.0 -PVERSION_CODE=1
-
-# Copy the freshly built AAB to the Windows desktop for Play Console upload
-.\scripts\export-play-store-release.ps1 -Version 1.0.0
+.\scripts\build_release.ps1 -Version 1.2.0 -VersionCode 3
 ```
 
-`scripts/build_release.ps1` wraps the same flow into a single command.
+This runs tests, produces signed APK + AAB, and copies
+`flux-hourglass-v{ver}-vc{code}.{apk,aab}` to the desktop ready for Play
+Console upload.
 
 ## CI
 
-`.github/workflows/android-ci.yml` runs unit tests + assembleDebug on every
-push/PR. `.github/workflows/release.yml` builds and uploads a signed APK + AAB
-when a `v*` tag is pushed. Both expect the release keystore to be base64-encoded
-into the `RELEASE_KEYSTORE_BASE64` secret plus the three password secrets above.
+- [`.github/workflows/android-ci.yml`](.github/workflows/android-ci.yml) — unit tests + `assembleDebug` on every push/PR.
+- [`.github/workflows/release.yml`](.github/workflows/release.yml) — signed APK + AAB build, GitHub Release published from `docs/releases/vX.Y.Z.md` when a `vX.Y.Z` tag is pushed.
+
+Both expect the release keystore base64-encoded in the
+`RELEASE_KEYSTORE_BASE64` secret plus the three password secrets.
+
+## Permissions
+
+`VIBRATE` only. No `INTERNET`. No location. No camera. No storage.
+
+## License
+
+This repository is the personal codebase of [@jeiel85](https://github.com/jeiel85).
+All rights reserved unless an explicit license is added.
+
+---
+
+<a id="kr"></a>
+
+## 한국어 안내
+
+칠흑 같은 배경에 입자 물리 기반의 모래시계 한 개만 있는 Android 타이머입니다.
+네트워크·광고·분석 코드 없음, 권한은 `VIBRATE` 하나뿐.
+
+### 주요 기능
+
+- **입자 물리 모래시계** — 각 모래알이 독립 입자로 떨어지고 충돌하며 화면 절반 높이까지 쌓입니다.
+- **기기 기울임 인식** — 가속도계가 중력 벡터를 실시간으로 넘겨 기울이면 모래가 낮은 쪽으로 쏠립니다.
+- **꾹 누르면 시간 표시** — 화면을 누르고 있는 동안 정확한 `HH : MM : SS`가 나타납니다.
+- **빠른 프리셋** — `1m / 3m / 5m / 10m / 25m / 1h` 한 번 탭으로 시·분·초가 채워집니다.
+- **일시정지/재개** — `P A U S E` 후 남은 시간과 잔여 비율을 표시, `R E S U M E`으로 그 시점부터 다시 카운트다운.
+- **타이머 동안 화면 켜짐** — 실행 상태에서만 `FLAG_KEEP_SCREEN_ON`을 걸고, 일시정지·완료·리셋 즉시 해제.
+- **마지막 시간 기억** — 종료 후 다시 켜도 직전에 시작했던 시·분·초가 그대로 채워져 있습니다.
+- **부드러운 완료음** — 알림 스트림에 세 음짜리 톤을 짧게 울려 진동과 함께 종료를 알립니다. 무음/방해금지 설정을 그대로 따릅니다.
+
+### 빌드·릴리즈 절차
+
+이 저장소에서 새 버전을 만드는 정해진 절차는 [`RELEASE.md`](RELEASE.md)에
+한국어로 정리되어 있습니다.
+
+### 랜딩 페이지
+
+[flux-hourglass-android 랜딩 페이지](https://jeiel85.github.io/flux-hourglass-android/) —
+GitHub Pages로 `docs/` 폴더를 그대로 호스팅합니다.
