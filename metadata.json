@@ -1,6 +1,6 @@
 {
-  "name": "아워글래스",
-  "description": "An ultra-minimalist particle physics hourglass timer built with Jetpack Compose Canvas and sensor physics.",
+  "name": "Flux Hourglass",
+  "description": "An ultra-minimalist particle physics hourglass timer built with Jetpack Compose Canvas and on-device sensor physics.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }

@@ -1,0 +1,94 @@
+name: Android Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Gradle Build, Test and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Decode debug keystore
+        run: base64 -d debug.keystore.base64 > debug.keystore
+
+      - name: Resolve release version
+        run: |
+          VERSION_NAME="${GITHUB_REF_NAME#v}"
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+
+      - name: Run unit tests
+        run: ./gradlew test
+
+      - name: Decode release keystore
+        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+
+      - name: Build APK
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease -PVERSION_NAME="$VERSION_NAME"
+
+      - name: Build AAB
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease -PVERSION_NAME="$VERSION_NAME"
+
+      - name: Check Build Artifacts
+        run: |
+          echo "=== APK Files ==="
+          ls -R app/build/outputs/apk/release/
+          echo "=== AAB Files ==="
+          ls -R app/build/outputs/bundle/release/
+
+      - name: Resolve release notes
+        id: notes
+        run: |
+          NOTES_FILE="docs/releases/${GITHUB_REF_NAME}.md"
+          if [ -f "$NOTES_FILE" ]; then
+            echo "Using hand-written notes from $NOTES_FILE"
+            echo "body_path=$NOTES_FILE" >> "$GITHUB_OUTPUT"
+            echo "generate=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "No $NOTES_FILE found, using auto-generated notes"
+            echo "body_path=" >> "$GITHUB_OUTPUT"
+            echo "generate=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: ${{ steps.notes.outputs.body_path }}
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
+          generate_release_notes: ${{ steps.notes.outputs.generate == 'true' }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

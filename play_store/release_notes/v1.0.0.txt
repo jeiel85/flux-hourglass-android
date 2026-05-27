@@ -1,0 +1,7 @@
+Initial release of Flux Hourglass — a minimalist particle-physics hourglass timer.
+
+• Set a duration with the H R / M I N / S E C drag pickers.
+• Watch real sand particles fall and pile up as time elapses.
+• Tilt the device to slump the pile under physical gravity.
+• Touch and hold to reveal the exact remaining time.
+• Pure black-and-white design, no network, no analytics, no ads.

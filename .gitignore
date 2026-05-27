@@ -10,9 +10,21 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 /build
+**/build/
 /captures
 .externalNativeBuild
 .cxx
 local.properties
 .env
 debug.keystore
+my-upload-key.jks
+release.keystore
+
+# Antigravity CLI and Gemini metadata
+.antigravitycli/
+.gemini/
+
+# Desktop export artifacts
+.build-outputs/*.aab
+.build-outputs/*.txt
+
