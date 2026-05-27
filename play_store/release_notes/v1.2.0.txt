@@ -1,8 +1,20 @@
-Gentle completion chime and the timer now remembers your last duration.
+<ko-KR>
+v1.2.0 부드러운 완료음, 마지막 시간 기억
 
-• A soft three-note chime plays when the hourglass finishes, in addition to
-  the existing vibration pulse. Volume is intentionally subdued so it does
-  not intrude during focus work.
-• Your last H R / M I N / S E C is remembered between launches, so opening
-  the app puts you one tap away from the timer you used last time.
-• Quick preset chips remain unchanged for one-tap durations.
+새로 추가
+• 부드러운 완료음 — 모래시계가 끝나면 세 음짜리 톤이 진동과 함께 울립니다. 알림 스트림을 사용해 무음·방해금지 설정을 그대로 따릅니다
+• 마지막 시간 기억 — 직전에 시작했던 시·분·초가 다음 실행 때 자동으로 채워져 한 번의 탭만으로 다시 시작할 수 있습니다
+
+유지
+• 광고·네트워크·추적 코드 없음, 권한은 진동 하나뿐
+</ko-KR>
+<en-US>
+v1.2.0 Gentle completion chime, remembers last duration
+
+What's new
+• Gentle completion chime — when the hourglass ends a soft three-note tone plays alongside the vibration. It rides the notification stream so it respects silent and Do Not Disturb
+• Remembers last duration — the H R / M I N / S E C you last started with is preloaded on next launch, so re-running the same timer takes a single tap
+
+Unchanged
+• No ads, no network, no tracking; the only permission is VIBRATE
+</en-US>

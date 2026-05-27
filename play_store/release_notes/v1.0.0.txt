@@ -1,7 +1,26 @@
-Initial release of Flux Hourglass — a minimalist particle-physics hourglass timer.
+<ko-KR>
+v1.0.0 Flux Hourglass 첫 출시
 
-• Set a duration with the H R / M I N / S E C drag pickers.
-• Watch real sand particles fall and pile up as time elapses.
-• Tilt the device to slump the pile under physical gravity.
-• Touch and hold to reveal the exact remaining time.
-• Pure black-and-white design, no network, no analytics, no ads.
+새 모래시계 타이머
+• 입자 물리로 모래알이 하나씩 떨어지고 화면 절반 높이까지 자연스럽게 쌓입니다
+• 기기를 기울이면 가속도계가 중력을 읽어 모래 더미가 낮은 쪽으로 흘러내립니다
+• 화면을 꾹 누르고 있는 동안 정확한 남은 시간이 떠오릅니다
+• 시·분·초 픽커는 위아래로 끌거나 화살표로 조절합니다
+
+설계 원칙
+• 칠흑 배경에 흰 모래 한 가지 — 광고·분석 코드 없음
+• 권한은 진동 하나뿐, 네트워크 접근 없음
+</ko-KR>
+<en-US>
+v1.0.0 Flux Hourglass — first release
+
+The hourglass timer
+• Particle physics — each grain falls and piles up to half the screen as time elapses
+• Tilt the phone to make the pile slump under real gravity via the accelerometer
+• Press and hold the screen to reveal exact remaining time
+• Drag or tap the H R / M I N / S E C pickers to set a duration
+
+Design principles
+• Pure black-and-white surface, no ads, no analytics
+• Only the VIBRATE permission, no network access
+</en-US>

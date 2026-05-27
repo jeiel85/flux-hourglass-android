@@ -91,12 +91,36 @@ versionName = (findProperty("VERSION_NAME") as String?) ?: "<X.Y.Z>"
 ### 2.3 릴리즈 노트 작성
 같은 버전명으로 두 파일을 만듭니다.
 
-| 파일 | 용도 |
-|------|------|
-| `docs/releases/vX.Y.Z.md` | GitHub Release 본문 |
-| `play_store/release_notes/vX.Y.Z.txt` | Play Console 입력용 |
+| 파일 | 용도 | 형식 |
+|------|------|------|
+| `docs/releases/vX.Y.Z.md` | GitHub Release 본문 | Markdown 자유 형식 |
+| `play_store/release_notes/vX.Y.Z.txt` | Play Console 입력용 | **BCP-47 다국어 블록 (필수)** |
 
-`docs/releases/v1.1.0.md`와 `play_store/release_notes/v1.1.0.txt`가 양식 예시입니다.
+Play Console 노트는 반드시 다음 형식을 따릅니다. 자세한 규약은
+[`play_store/release_notes/README.md`](play_store/release_notes/README.md)에
+박제되어 있습니다.
+
+```text
+<ko-KR>
+vX.Y.Z 한 줄 요약
+
+새로 추가
+• 변경 1
+</ko-KR>
+<en-US>
+vX.Y.Z short summary
+
+What's new
+• Change 1
+</en-US>
+```
+
+- **두 언어 블록 모두 필수.** 한국어(`<ko-KR>`) 먼저, 영어(`<en-US>`) 그다음.
+- **언어당 500자 이내.** Play Console 자동 잘림.
+- **마크다운/HTML 금지.** 평문 + `•` 글머리표만.
+
+`scripts/export-play-store-release.ps1`은 이 두 블록이 없으면 export를
+중단합니다. 양식 예시는 `play_store/release_notes/v1.2.0.txt`를 참고하세요.
 
 ### 2.4 CHANGELOG 업데이트
 `CHANGELOG.md` 최상단에 새 버전 섹션을 추가합니다.
@@ -118,12 +142,16 @@ $env:KEY_PASSWORD = "<KEY_PASSWORD>"
 1. `./gradlew test`
 2. `./gradlew clean bundleRelease assembleRelease -PVERSION_NAME=1.2.0 -PVERSION_CODE=3`
 3. `scripts\export-play-store-release.ps1`을 호출해서 결과물을 바탕화면으로
-   복사. 파일 이름은 `flux-hourglass-v1.2.0-vc3.aab`, `flux-hourglass-v1.2.0-vc3.apk`,
-   `flux-hourglass-v1.2.0-vc3-release-notes.txt`.
+   복사. 파일 이름은 `flux-hourglass-v1.2.0-vc3.aab`,
+   `flux-hourglass-v1.2.0-vc3-release-notes.txt` **두 개만**입니다.
 
-원본은 `app/build/outputs/bundle/release/app-release.aab`와
-`app/build/outputs/apk/release/app-release.apk`에 그대로 남습니다. 같은
-파일이 `/.build-outputs/`에도 거울로 복사되어 빌드 크기를 추적할 수 있습니다.
+**APK는 바탕화면으로 복사하지 않습니다.** Play Console 업로드에 필요한
+것은 AAB뿐입니다. 사이드로드용 APK가 필요하면
+`app/build/outputs/apk/release/app-release.apk`에서 직접 가져가거나, 태그를
+푸시해 GitHub Release에 자동으로 올라온 것을 받아 사용합니다.
+
+원본 AAB와 APK는 `app/build/outputs/bundle/release/app-release.aab`와
+`app/build/outputs/apk/release/app-release.apk`에 그대로 남습니다.
 
 ### 2.6 커밋 + 태그 + 푸시
 
@@ -139,11 +167,17 @@ git push origin main vX.Y.Z
 `docs/releases/vX.Y.Z.md`를 본문으로 GitHub Release를 게시합니다.
 
 ## 3. Play Console 업로드
-바탕화면에 떨어진 세 파일만 사용합니다.
+바탕화면에 떨어진 두 파일만 사용합니다.
 
-- `flux-hourglass-v{ver}-vc{code}.aab` — Play Console Internal/Production 트랙에 업로드.
-- `flux-hourglass-v{ver}-vc{code}-release-notes.txt` — "이번 버전의 새로운 기능"에 복사 붙여넣기.
-- `flux-hourglass-v{ver}-vc{code}.apk` — 사이드로드용(또는 GitHub Release에서 사용자가 직접 다운로드용).
+- `flux-hourglass-v{ver}-vc{code}.aab` — Play Console Internal/Production
+  트랙에 업로드.
+- `flux-hourglass-v{ver}-vc{code}-release-notes.txt` — "이번 버전의 새로운
+  기능 / What's new in this release" 입력란에 **파일 내용 전체를 그대로**
+  붙여넣습니다. Play Console이 `<ko-KR>` / `<en-US>` 블록을 자동 인식해 각
+  언어별 노트로 분리합니다.
+
+사이드로드용 APK는 `app/build/outputs/apk/release/app-release.apk` 또는 태그
+푸시 후 GitHub Release 페이지에서 받습니다.
 
 ## 4. 트러블슈팅
 
@@ -160,8 +194,10 @@ git push origin main vX.Y.Z
 | 산출물 | 경로 |
 |--------|------|
 | Debug APK | `app/build/outputs/apk/debug/*.apk` |
-| Release APK | `app/build/outputs/apk/release/*.apk` |
-| Release AAB | `app/build/outputs/bundle/release/*.aab` |
-| 로컬 거울 | `.build-outputs/flux-hourglass-vX.Y.Z-vcN.{apk,aab}` |
-| 바탕화면 | `Desktop/flux-hourglass-vX.Y.Z-vcN.{apk,aab,release-notes.txt}` |
+| Release APK | `app/build/outputs/apk/release/*.apk` (사이드로드 전용) |
+| Release AAB | `app/build/outputs/bundle/release/*.aab` (Play Console 업로드용) |
+| 바탕화면 | `Desktop/flux-hourglass-vX.Y.Z-vcN.aab` + `...-release-notes.txt` |
 | Roborazzi 베이스라인 | `app/src/test/screenshots/*.png` |
+
+**바탕화면에는 AAB와 다국어 release-notes.txt만 떨어집니다.** APK는 일부러
+복사하지 않습니다.

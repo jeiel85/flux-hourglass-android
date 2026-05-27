@@ -1,7 +1,6 @@
 param(
     [string]$Version = "",
     [string]$AabPath = "",
-    [string]$ApkPath = "",
     [string]$DesktopPath = ""
 )
 
@@ -100,36 +99,44 @@ $resolvedVersion = Resolve-Version -ExplicitVersion $Version
 $resolvedCode = Resolve-VersionCode
 $desktop = Resolve-DesktopPath -ExplicitDesktopPath $DesktopPath
 
+# Only the AAB is exported to the desktop. The APK is intentionally NOT
+# copied — Play Console upload uses the AAB, and the APK lives only inside
+# `app/build/outputs/apk/release/` for ad-hoc sideloading. The Play Console
+# release notes file is what users actually need on the desktop.
 $sourceAab = Resolve-ArtifactPath -ExplicitPath $AabPath `
     -RelativeDir "app\build\outputs\bundle\release" `
     -Filter "*.aab" `
     -BuildCommand ".\gradlew.bat bundleRelease"
 
-$sourceApk = Resolve-ArtifactPath -ExplicitPath $ApkPath `
-    -RelativeDir "app\build\outputs\apk\release" `
-    -Filter "*.apk" `
-    -BuildCommand ".\gradlew.bat assembleRelease"
-
 $stem = "flux-hourglass-v$resolvedVersion-vc$resolvedCode"
 $targetAab = Join-Path $desktop "$stem.aab"
-$targetApk = Join-Path $desktop "$stem.apk"
 
 Copy-Item -LiteralPath $sourceAab -Destination $targetAab -Force
-Copy-Item -LiteralPath $sourceApk -Destination $targetApk -Force
 
-# Local mirror in repo so committers can quickly verify the build sizes
-$buildOutputs = Join-Path $PSScriptRoot "..\.build-outputs"
-New-Item -ItemType Directory -Force -Path $buildOutputs | Out-Null
-Copy-Item -LiteralPath $sourceAab -Destination (Join-Path $buildOutputs "$stem.aab") -Force
-Copy-Item -LiteralPath $sourceApk -Destination (Join-Path $buildOutputs "$stem.apk") -Force
-
+# Release notes must already exist in BCP-47 multi-language form. The file
+# is copied verbatim — Play Console will split the <ko-KR>/<en-US> blocks.
 $notesPath = Join-Path $PSScriptRoot "..\play_store\release_notes\v$resolvedVersion.txt"
-if (Test-Path -LiteralPath $notesPath -PathType Leaf) {
-    $targetNotes = Join-Path $desktop "$stem-release-notes.txt"
-    Copy-Item -LiteralPath $notesPath -Destination $targetNotes -Force
-    Write-Host "Exported Play Store release notes: $targetNotes"
+if (-not (Test-Path -LiteralPath $notesPath -PathType Leaf)) {
+    throw "Play Store release notes not found: $notesPath. " +
+        "Create it with the <ko-KR>...</ko-KR><en-US>...</en-US> format documented in play_store/release_notes/README.md."
+}
+
+$notesContent = Get-Content -LiteralPath $notesPath -Raw -Encoding UTF8
+if ($notesContent -notmatch '<ko-KR>' -or $notesContent -notmatch '<en-US>') {
+    throw "Release notes at $notesPath must contain both <ko-KR>...</ko-KR> and <en-US>...</en-US> blocks. " +
+        "See play_store/release_notes/README.md for the required format."
+}
+
+$targetNotes = Join-Path $desktop "$stem-release-notes.txt"
+Copy-Item -LiteralPath $notesPath -Destination $targetNotes -Force
+
+# Remove any stale APK that an older version of this script left behind.
+$staleApk = Join-Path $desktop "$stem.apk"
+if (Test-Path -LiteralPath $staleApk -PathType Leaf) {
+    Remove-Item -LiteralPath $staleApk -Force
+    Write-Host "Removed stale desktop APK: $staleApk"
 }
 
 Write-Host "Exported Play Store files:"
 Write-Host "- $targetAab"
-Write-Host "- $targetApk"
+Write-Host "- $targetNotes"
