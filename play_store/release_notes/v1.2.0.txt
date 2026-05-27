@@ -1,0 +1,8 @@
+Gentle completion chime and the timer now remembers your last duration.
+
+• A soft three-note chime plays when the hourglass finishes, in addition to
+  the existing vibration pulse. Volume is intentionally subdued so it does
+  not intrude during focus work.
+• Your last H R / M I N / S E C is remembered between launches, so opening
+  the app puts you one tap away from the timer you used last time.
+• Quick preset chips remain unchanged for one-tap durations.

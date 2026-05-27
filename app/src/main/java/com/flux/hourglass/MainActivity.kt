@@ -5,6 +5,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
@@ -78,6 +80,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.flux.hourglass.ui.theme.HourglassTheme
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import com.flux.hourglass.ui.theme.PureBlack
 import com.flux.hourglass.ui.theme.PureWhite
 import com.flux.hourglass.ui.theme.SandWhite
@@ -114,12 +119,24 @@ class MainActivity : ComponentActivity() {
 fun HourglassApp(
     viewModel: TimerViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val state by viewModel.timerState.collectAsState()
     val remainingMillis by viewModel.remainingMillis.collectAsState()
 
-    var hoursVal by remember { mutableStateOf(0) }
-    var minutesVal by remember { mutableStateOf(1) }
-    var secondsVal by remember { mutableStateOf(0) }
+    val seeded = remember {
+        runBlocking {
+            try {
+                TimerPreferences.observe(context).first()
+            } catch (e: Exception) {
+                LastDuration(0, 1, 0)
+            }
+        }
+    }
+
+    var hoursVal by remember { mutableStateOf(seeded.hours) }
+    var minutesVal by remember { mutableStateOf(seeded.minutes) }
+    var secondsVal by remember { mutableStateOf(seeded.seconds) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     when (val current = state) {
         is TimerState.Setup -> {
@@ -136,6 +153,11 @@ fun HourglassApp(
                     secondsVal = s
                 },
                 onStart = {
+                    if (hoursVal > 0 || minutesVal > 0 || secondsVal > 0) {
+                        scope.launch {
+                            TimerPreferences.save(context, hoursVal, minutesVal, secondsVal)
+                        }
+                    }
                     viewModel.startTimer(hoursVal, minutesVal, secondsVal)
                 }
             )
@@ -833,6 +855,22 @@ fun FinishedScreen(
                     vibrator.vibrate(600)
                 }
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Gentle completion chime — three short notification beeps via the
+        // system ToneGenerator. Volume is intentionally subdued so it does not
+        // intrude during meditation/focus use.
+        try {
+            val tone = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70)
+            tone.startTone(ToneGenerator.TONE_PROP_BEEP, 220)
+            kotlinx.coroutines.delay(320)
+            tone.startTone(ToneGenerator.TONE_PROP_BEEP, 220)
+            kotlinx.coroutines.delay(320)
+            tone.startTone(ToneGenerator.TONE_PROP_BEEP2, 420)
+            kotlinx.coroutines.delay(600)
+            tone.release()
         } catch (e: Exception) {
             e.printStackTrace()
         }

@@ -24,7 +24,9 @@ release.keystore
 .antigravitycli/
 .gemini/
 
-# Desktop export artifacts
-.build-outputs/*.aab
-.build-outputs/*.txt
+# Desktop export artifacts (mirrored separately to the Windows desktop)
+.build-outputs/
+
+# Local debug logs from troubleshooting Gradle issues
+lint-debug.log
 
