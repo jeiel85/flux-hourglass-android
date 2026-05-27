@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -68,6 +69,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -119,7 +121,7 @@ fun HourglassApp(
     var minutesVal by remember { mutableStateOf(1) }
     var secondsVal by remember { mutableStateOf(0) }
 
-    when (state) {
+    when (val current = state) {
         is TimerState.Setup -> {
             SetupScreen(
                 hours = hoursVal,
@@ -128,16 +130,29 @@ fun HourglassApp(
                 onHoursChange = { hoursVal = it },
                 onMinutesChange = { minutesVal = it },
                 onSecondsChange = { secondsVal = it },
+                onPresetSelected = { h, m, s ->
+                    hoursVal = h
+                    minutesVal = m
+                    secondsVal = s
+                },
                 onStart = {
                     viewModel.startTimer(hoursVal, minutesVal, secondsVal)
                 }
             )
         }
         is TimerState.Running -> {
-            val total = (state as TimerState.Running).totalMillis
             RunningScreen(
                 remainingMillis = remainingMillis,
-                totalMillis = total,
+                totalMillis = current.totalMillis,
+                onPause = { viewModel.pauseTimer() },
+                onReset = { viewModel.resetTimer() }
+            )
+        }
+        is TimerState.Paused -> {
+            PausedScreen(
+                remainingMillis = current.remainingMillis,
+                totalMillis = current.totalMillis,
+                onResume = { viewModel.resumeTimer() },
                 onReset = { viewModel.resetTimer() }
             )
         }
@@ -150,6 +165,18 @@ fun HourglassApp(
 }
 
 @Composable
+private fun KeepScreenOn() {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val window = (view.context as? android.app.Activity)?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+}
+
+@Composable
 fun SetupScreen(
     hours: Int,
     minutes: Int,
@@ -157,6 +184,7 @@ fun SetupScreen(
     onHoursChange: (Int) -> Unit,
     onMinutesChange: (Int) -> Unit,
     onSecondsChange: (Int) -> Unit,
+    onPresetSelected: (Int, Int, Int) -> Unit = { _, _, _ -> },
     onStart: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
@@ -180,6 +208,25 @@ fun SetupScreen(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 24.dp)
         )
+
+        // Quick Presets — minimal text labels
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .testTag("preset_row"),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PresetLabels.forEach { preset ->
+                PresetChip(
+                    label = preset.label,
+                    onClick = {
+                        onPresetSelected(preset.h, preset.m, preset.s)
+                    }
+                )
+            }
+        }
 
         // Triple Picker Row
         Row(
@@ -257,6 +304,43 @@ fun SetupScreen(
                 )
             }
         }
+    }
+}
+
+private data class TimePreset(val label: String, val h: Int, val m: Int, val s: Int)
+
+private val PresetLabels = listOf(
+    TimePreset("1m", 0, 1, 0),
+    TimePreset("3m", 0, 3, 0),
+    TimePreset("5m", 0, 5, 0),
+    TimePreset("10m", 0, 10, 0),
+    TimePreset("25m", 0, 25, 0),
+    TimePreset("1h", 1, 0, 0)
+)
+
+@Composable
+private fun PresetChip(label: String, onClick: () -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    Box(
+        modifier = Modifier
+            .pointerInput(label) {
+                detectTapGestures(
+                    onTap = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onClick()
+                    }
+                )
+            }
+            .testTag("preset_$label")
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Thin,
+            color = PureWhite.copy(alpha = 0.55f),
+            letterSpacing = 1.sp,
+            modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp)
+        )
     }
 }
 
@@ -340,8 +424,11 @@ fun TimePickerColumn(
 fun RunningScreen(
     remainingMillis: Long,
     totalMillis: Long,
+    onPause: () -> Unit = {},
     onReset: () -> Unit
 ) {
+    KeepScreenOn()
+
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
@@ -528,30 +615,191 @@ fun RunningScreen(
             }
         }
 
-        // Extremely Faint Reset Trigger label at bottom to allow manually backing out
-        Box(
+        // Bottom controls: PAUSE on the left, RESET on the right, both extremely faint
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(bottom = 24.dp)
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onReset()
-                        }
-                    )
-                }
-                .testTag("reset_button")
+                .padding(horizontal = 32.dp, vertical = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onPause()
+                            }
+                        )
+                    }
+                    .testTag("pause_button")
+            ) {
+                Text(
+                    text = "P A U S E",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Thin,
+                    color = PureWhite.copy(alpha = 0.25f),
+                    letterSpacing = 3.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onReset()
+                            }
+                        )
+                    }
+                    .testTag("reset_button")
+            ) {
+                Text(
+                    text = "R E S E T",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Thin,
+                    color = PureWhite.copy(alpha = 0.25f),
+                    letterSpacing = 3.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PausedScreen(
+    remainingMillis: Long,
+    totalMillis: Long,
+    onResume: () -> Unit,
+    onReset: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+
+    val hoursLeft = (remainingMillis / 3600000)
+    val minutesLeft = (remainingMillis / 60000) % 60
+    val secondsLeft = (remainingMillis / 1000) % 60
+    val timeString = String.format("%02d : %02d : %02d", hoursLeft, minutesLeft, secondsLeft)
+
+    val totalSecs = totalMillis / 1000
+    val remainingSecs = remainingMillis / 1000
+    val percentLeft = if (totalSecs > 0) {
+        ((remainingSecs.toFloat() / totalSecs.toFloat()) * 100).toInt()
+    } else {
+        0
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "P A U S E D",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.ExtraLight,
+            color = PureWhite.copy(alpha = 0.4f),
+            letterSpacing = 4.sp,
+            modifier = Modifier.padding(top = 32.dp)
+        )
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "R E S E T",
-                fontSize = 11.sp,
+                text = timeString,
+                fontSize = 48.sp,
                 fontWeight = FontWeight.Thin,
-                color = PureWhite.copy(alpha = 0.25f),
-                letterSpacing = 3.sp,
-                modifier = Modifier.padding(12.dp)
+                color = PureWhite,
+                letterSpacing = 2.sp,
+                textAlign = TextAlign.Center
             )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "$percentLeft %  R E M A I N I N G",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.ExtraLight,
+                color = PureWhite.copy(alpha = 0.35f),
+                letterSpacing = 3.sp
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onReset()
+                            }
+                        )
+                    }
+                    .testTag("paused_reset_button")
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "R E S E T",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraLight,
+                        color = PureWhite.copy(alpha = 0.5f),
+                        letterSpacing = 3.sp,
+                        modifier = Modifier.padding(vertical = 12.dp, horizontal = 24.dp)
+                    )
+                    Spacer(
+                        modifier = Modifier
+                            .width(32.dp)
+                            .height(0.5.dp)
+                            .background(PureWhite.copy(alpha = 0.3f))
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onResume()
+                            }
+                        )
+                    }
+                    .testTag("resume_button")
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "R E S U M E",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Thin,
+                        color = PureWhite,
+                        letterSpacing = 4.sp,
+                        modifier = Modifier.padding(vertical = 12.dp, horizontal = 24.dp)
+                    )
+                    Spacer(
+                        modifier = Modifier
+                            .width(48.dp)
+                            .height(0.5.dp)
+                            .background(PureWhite.copy(alpha = 0.5f))
+                    )
+                }
+            }
         }
     }
 }

@@ -1,0 +1,8 @@
+Quick-pick presets, pause/resume, screen stays on while sand falls.
+
+• Quick presets — tap 1m / 3m / 5m / 10m / 25m / 1h above the pickers to set
+  a duration instantly.
+• Pause and resume — a faint P A U S E control during a run freezes the
+  countdown; R E S U M E picks it back up where the sand left off.
+• Display stays on while the timer is running, so the hourglass never sleeps.
+• Paused view shows exact remaining time and percent left at a glance.

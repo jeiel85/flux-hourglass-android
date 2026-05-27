@@ -53,6 +53,51 @@ class TimerViewModelTest {
     }
 
     @Test
+    fun pauseFromRunningProducesPausedStateWithSameTotal() = runTest(dispatcher) {
+        val vm = TimerViewModel()
+        vm.startTimer(hours = 0, minutes = 1, seconds = 0)
+        vm.pauseTimer()
+        val paused = vm.timerState.value
+        assertTrue("expected Paused, got $paused", paused is TimerState.Paused)
+        paused as TimerState.Paused
+        assertEquals(60_000L, paused.totalMillis)
+        assertTrue("remaining should be > 0", paused.remainingMillis > 0L)
+        assertTrue("remaining should not exceed total", paused.remainingMillis <= 60_000L)
+    }
+
+    @Test
+    fun resumeFromPausedRestoresRunningState() = runTest(dispatcher) {
+        val vm = TimerViewModel()
+        vm.startTimer(hours = 0, minutes = 0, seconds = 30)
+        vm.pauseTimer()
+        vm.resumeTimer()
+        val state = vm.timerState.value
+        assertTrue("expected Running, got $state", state is TimerState.Running)
+        assertEquals(30_000L, (state as TimerState.Running).totalMillis)
+    }
+
+    @Test
+    fun pauseFromSetupIsANoOp() {
+        val vm = TimerViewModel()
+        vm.pauseTimer()
+        assertEquals(TimerState.Setup, vm.timerState.value)
+    }
+
+    @Test
+    fun resumeFromRunningIsANoOp() = runTest(dispatcher) {
+        val vm = TimerViewModel()
+        vm.startTimer(hours = 0, minutes = 0, seconds = 30)
+        val before = vm.timerState.value
+        vm.resumeTimer()
+        val after = vm.timerState.value
+        assertTrue("state should remain Running", after is TimerState.Running)
+        assertEquals(
+            (before as TimerState.Running).totalMillis,
+            (after as TimerState.Running).totalMillis,
+        )
+    }
+
+    @Test
     fun resetReturnsToSetupAndClearsDuration() = runTest(dispatcher) {
         val vm = TimerViewModel()
         vm.startTimer(hours = 0, minutes = 0, seconds = 5)

@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 sealed class TimerState {
     object Setup : TimerState()
     data class Running(val remainingMillis: Long, val totalMillis: Long) : TimerState()
+    data class Paused(val remainingMillis: Long, val totalMillis: Long) : TimerState()
     object Finished : TimerState()
 }
 
@@ -30,13 +31,39 @@ class TimerViewModel : ViewModel() {
     fun startTimer(hours: Int, minutes: Int, seconds: Int) {
         val totalSecs = (hours * 3600L) + (minutes * 60L) + seconds
         if (totalSecs <= 0) return
-        
+
         totalDuration = totalSecs * 1000L
         _remainingMillis.value = totalDuration
         _timerState.value = TimerState.Running(totalDuration, totalDuration)
-        
+
         endTime = System.currentTimeMillis() + totalDuration
-        
+        startTicking()
+    }
+
+    fun pauseTimer() {
+        val current = _timerState.value as? TimerState.Running ?: return
+        timerJob?.cancel()
+        timerJob = null
+        _timerState.value = TimerState.Paused(current.remainingMillis, current.totalMillis)
+    }
+
+    fun resumeTimer() {
+        val current = _timerState.value as? TimerState.Paused ?: return
+        endTime = System.currentTimeMillis() + current.remainingMillis
+        _remainingMillis.value = current.remainingMillis
+        _timerState.value = TimerState.Running(current.remainingMillis, current.totalMillis)
+        startTicking()
+    }
+
+    fun resetTimer() {
+        timerJob?.cancel()
+        timerJob = null
+        totalDuration = 0L
+        _remainingMillis.value = 0L
+        _timerState.value = TimerState.Setup
+    }
+
+    private fun startTicking() {
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (true) {
@@ -49,17 +76,9 @@ class TimerViewModel : ViewModel() {
                 }
                 _remainingMillis.value = left
                 _timerState.value = TimerState.Running(left, totalDuration)
-                delay(16) // tick frequently for seamless simulation update
+                delay(16)
             }
         }
-    }
-
-    fun resetTimer() {
-        timerJob?.cancel()
-        timerJob = null
-        totalDuration = 0L
-        _remainingMillis.value = 0L
-        _timerState.value = TimerState.Setup
     }
 
     override fun onCleared() {
