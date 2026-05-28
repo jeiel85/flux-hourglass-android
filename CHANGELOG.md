@@ -7,6 +7,35 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-05-28
+
+### Added
+- Premium **Water Mode** featuring double-layer translucent wave rendering, rising wobbly gaseous bubbles, and gravity-accelerated splashes.
+- **Spring-Damper Tilt Physics** for realistic, fluid sloshing dynamics driven by device accelerometer tilting.
+- **Full-Screen Immersive Mode** utilizing AndroidX's `WindowInsetsControllerCompat` to completely hide status and navigation bars with transient swipe-to-reveal gestures.
+
+### Changed
+- Aligned physical tilting scaling and gravity-lean calculation limits for falling water and splash particles to achieve high-fidelity visual alignment.
+
+## [1.4.0] — 2026-05-28
+
+### Added
+- **Gravity-aware screen rotation** that snaps visual content to four physical 90° orientations so sand/LEDs always fall downward toward gravity.
+- **Proportional pile rescaling** across orientation changes to keep filling volume layout balanced.
+
+### Improved
+- Bottom **PAUSE / RESET** control pill readability: added dark semi-transparent backdrops and increased text alpha.
+
+## [1.3.0] — 2026-05-28
+
+### Added
+- **LED Grid Mode** featuring a beautiful retro 16×32 pixel art sand/light simulation, toggleable via the top screen tabs.
+- Accelerometer-driven **gyro response** causing in-flight sand columns to bend and piles to slump organically toward gravity.
+
+### Improved
+- Sand accumulation expanded to **100% full height coverage** on timer completion.
+- Smoother grain rendering with 90 particle columns.
+
 ## [1.2.0] — 2026-05-27
 
 ### Added

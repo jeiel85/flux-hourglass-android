@@ -1,0 +1,20 @@
+<ko-KR>
+v1.5.0 몰입형 전체화면 및 다이내믹 물 모드 추가
+
+새로 추가
+• 다이내믹 물 모드 — 설정 화면에서 WATER 탭을 선택하세요. 실시간 스프링-댐퍼 물리로 구현된 투명한 물결, 중력에 반응하여 휘어지는 물줄기, 솟아오르는 기포와 시원한 물방울 스플래시 효과를 제공합니다
+• 몰입형 전체화면 — 시스템 상태바와 내비게이션 바를 완전히 숨겨 방해 없는 극도로 미니멀한 타이머 화면을 선사합니다
+
+개선
+• 모래 모드처럼 물도 폰을 좌우로 기울일 때 실제 유체처럼 물결이 역동적이고 부드럽게 흔들리도록 피드백 각도를 대폭 강화했습니다
+</ko-KR>
+<en-US>
+v1.5.0 Immersive Full-Screen & Dynamic Water Mode
+
+New
+• Water Mode — Select WATER to enjoy premium fluid simulation. Features dual undulating translucent waves, a gravity-bending stream, rising wobbly bubbles, and splash particles
+• Immersive Full-Screen — Automatically hides status and navigation bars for a distraction-free, beautiful visual aesthetic
+
+Improved
+• Enhanced fluid tilting responsiveness: water sloshes dynamically and smoothly as you tilt your device left or right
+</en-US>

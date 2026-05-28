@@ -68,7 +68,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -103,6 +105,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Enable complete full-screen Immersive Mode (hide system status bar and navigation bar)
+        val windowInsetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+        windowInsetsController.systemBarsBehavior =
+            androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+
         setContent {
             HourglassTheme {
                 Scaffold(
@@ -246,12 +255,12 @@ fun SetupScreen(
             modifier = Modifier.padding(top = 24.dp)
         )
 
-        // Mode toggle (SAND / LED)
+        // Mode toggle (SAND / LED / WATER)
         Row(
             modifier = Modifier
                 .padding(horizontal = 16.dp)
                 .testTag("mode_row"),
-            horizontalArrangement = Arrangement.spacedBy(28.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             ModeTab(
@@ -265,6 +274,12 @@ fun SetupScreen(
                 selected = mode == DisplayMode.LED,
                 onClick = { onModeChange(DisplayMode.LED) },
                 tag = "mode_led"
+            )
+            ModeTab(
+                label = "W A T E R",
+                selected = mode == DisplayMode.WATER,
+                onClick = { onModeChange(DisplayMode.WATER) },
+                tag = "mode_water"
             )
         }
 
@@ -541,66 +556,16 @@ fun RunningScreen(
             onPause = onPause,
             onReset = onReset
         )
+        DisplayMode.WATER -> WaterRunningScreen(
+            remainingMillis = remainingMillis,
+            totalMillis = totalMillis,
+            onPause = onPause,
+            onReset = onReset
+        )
     }
 }
 
-// Snap orientation derived from the device accelerometer. Four cases are
-// modelled — one per 90° rotation — so the rendered content can be flipped
-// to keep "logical down" aligned with the real-world gravity direction.
-enum class GravityOrient(val rotationDeg: Float, val swapsDimensions: Boolean) {
-    /** Bottom of the device is the gravity-down edge — default portrait. */
-    PORTRAIT(rotationDeg = 0f, swapsDimensions = false),
-    /** Top of the device is the gravity-down edge — held upside down. */
-    UPSIDE_DOWN(rotationDeg = 180f, swapsDimensions = false),
-    /** Left edge of the device is the gravity-down edge — phone rotated CCW. */
-    LANDSCAPE_LEFT_DOWN(rotationDeg = -90f, swapsDimensions = true),
-    /** Right edge of the device is the gravity-down edge — phone rotated CW. */
-    LANDSCAPE_RIGHT_DOWN(rotationDeg = 90f, swapsDimensions = true);
 
-    /**
-     * Projects raw device-frame gravity onto the logical frame so that
-     * `logical.y` always points toward the gravity-down edge.
-     * Input convention: positive `deviceTiltX` = gravity pulls toward the
-     * device's right edge; positive `deviceTiltY` = gravity pulls toward
-     * the device's bottom edge.
-     * Returns `(gravityX_logical, gravityY_logical)`.
-     */
-    fun logicalGravity(deviceTiltX: Float, deviceTiltY: Float): Pair<Float, Float> =
-        when (this) {
-            PORTRAIT -> deviceTiltX to deviceTiltY
-            UPSIDE_DOWN -> -deviceTiltX to -deviceTiltY
-            LANDSCAPE_LEFT_DOWN -> deviceTiltY to -deviceTiltX
-            LANDSCAPE_RIGHT_DOWN -> -deviceTiltY to deviceTiltX
-        }
-
-    companion object {
-        /**
-         * Classifies orientation from device-frame gravity with hysteresis:
-         * the dominant axis must clearly beat the other (1.5×) and exceed
-         * 5 m/s² before we switch, so a phone held near diagonal does not
-         * flip-flop every frame.
-         */
-        fun classify(tiltX: Float, tiltY: Float, current: GravityOrient): GravityOrient {
-            val absX = abs(tiltX)
-            val absY = abs(tiltY)
-            val mag = sqrt(tiltX * tiltX + tiltY * tiltY)
-            // Too weak (free-fall or screen-up flat) — stay where we were.
-            if (mag < 4f) return current
-
-            val candidate = when {
-                absY >= absX && tiltY > 0 -> PORTRAIT
-                absY >= absX && tiltY < 0 -> UPSIDE_DOWN
-                absX > absY && tiltX > 0 -> LANDSCAPE_RIGHT_DOWN
-                else -> LANDSCAPE_LEFT_DOWN
-            }
-            if (candidate == current) return current
-
-            val dominantMag = if (candidate.swapsDimensions) absX else absY
-            val otherMag = if (candidate.swapsDimensions) absY else absX
-            return if (dominantMag > otherMag * 1.5f && dominantMag > 5f) candidate else current
-        }
-    }
-}
 
 @Composable
 private fun RunningOverlay(
@@ -730,7 +695,6 @@ fun SandRunningScreen(
     //   tiltY > 0 → gravity pulls toward the device's bottom edge (portrait normal)
     var tiltX by remember { mutableFloatStateOf(0f) }
     var tiltY by remember { mutableFloatStateOf(9.81f) }
-    var orient by remember { mutableStateOf(GravityOrient.PORTRAIT) }
 
     var isScreenPressed by remember { mutableStateOf(false) }
 
@@ -742,15 +706,11 @@ fun SandRunningScreen(
             override fun onSensorChanged(event: SensorEvent?) {
                 if (event == null) return
                 if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
-                    // Sensor X is positive when right side of phone goes up
-                    // (relative to gravity), so flip the sign to get our
-                    // "positive = gravity-toward-right" convention.
                     val alpha = 0.2f
                     val newX = tiltX + alpha * (-event.values[0] - tiltX)
                     val newY = tiltY + alpha * (event.values[1] - tiltY)
                     tiltX = newX
                     tiltY = newY
-                    orient = GravityOrient.classify(newX, newY, orient)
                 }
             }
 
@@ -788,18 +748,9 @@ fun SandRunningScreen(
                 )
             }
     ) {
-        // For landscape orientations swap layout dimensions so the rotated
-        // child still covers the device area exactly. The child is then
-        // rotated via graphicsLayer so its logical "up" maps to the
-        // device edge furthest from gravity.
-        val swap = orient.swapsDimensions
-        val boxW = if (swap) maxHeight else maxWidth
-        val boxH = if (swap) maxWidth else maxHeight
-
-        val (gxLogical, gyLogical) = orient.logicalGravity(tiltX, tiltY)
         val currentProgressFraction by rememberUpdatedState(progressFraction)
-        val currentGravityX by rememberUpdatedState(gxLogical)
-        val currentGravityY by rememberUpdatedState(gyLogical)
+        val currentGravityX by rememberUpdatedState(tiltX)
+        val currentGravityY by rememberUpdatedState(tiltY)
         var tick by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(Unit) {
@@ -827,9 +778,8 @@ fun SandRunningScreen(
 
         Box(
             modifier = Modifier
-                .size(boxW, boxH)
+                .fillMaxSize()
                 .align(Alignment.Center)
-                .graphicsLayer(rotationZ = orient.rotationDeg)
         ) {
             Canvas(
                 modifier = Modifier.fillMaxSize()
@@ -842,8 +792,8 @@ fun SandRunningScreen(
 
                 physics.initDimensions(width, height)
 
-                val particleRadius = 1.4.dp.toPx()
-                val grainRadius = 1.0.dp.toPx()
+                val particleRadius = 0.85.dp.toPx()
+                val grainRadius = 0.6.dp.toPx()
 
                 // 1. Active falling grains
                 for (i in 0 until physics.maxParticles) {
@@ -882,14 +832,14 @@ fun SandRunningScreen(
                     }
                 }
             }
-
-            RunningOverlay(
-                remainingMillis = remainingMillis,
-                isScreenPressed = isScreenPressed,
-                onPause = onPause,
-                onReset = onReset
-            )
         }
+
+        RunningOverlay(
+            remainingMillis = remainingMillis,
+            isScreenPressed = isScreenPressed,
+            onPause = onPause,
+            onReset = onReset
+        )
     }
 }
 
@@ -906,7 +856,6 @@ fun LedRunningScreen(
 
     var tiltX by remember { mutableFloatStateOf(0f) }
     var tiltY by remember { mutableFloatStateOf(9.81f) }
-    var orient by remember { mutableStateOf(GravityOrient.PORTRAIT) }
 
     DisposableEffect(Unit) {
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
@@ -920,7 +869,6 @@ fun LedRunningScreen(
                     val newY = tiltY + alpha * (event.values[1] - tiltY)
                     tiltX = newX
                     tiltY = newY
-                    orient = GravityOrient.classify(newX, newY, orient)
                 }
             }
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -954,15 +902,10 @@ fun LedRunningScreen(
                 )
             }
     ) {
-        val swap = orient.swapsDimensions
-        val boxW = if (swap) maxHeight else maxWidth
-        val boxH = if (swap) maxWidth else maxHeight
-
         Box(
             modifier = Modifier
-                .size(boxW, boxH)
+                .fillMaxSize()
                 .align(Alignment.Center)
-                .graphicsLayer(rotationZ = orient.rotationDeg)
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val width = size.width
@@ -984,10 +927,6 @@ fun LedRunningScreen(
                 val filledExact = elapsedFraction * total
 
                 for (idx in 0 until total) {
-                    // Fill bottom-to-top, left-to-right within each row
-                    // — bottom in the LOGICAL frame, which is always
-                    // physical gravity-down thanks to the rotated
-                    // wrapper above.
                     val rowFromTop = rows - 1 - (idx / cols)
                     val col = idx % cols
                     val cx = offsetX + col * cellW + (cellW - dotSize) / 2f
@@ -1010,14 +949,356 @@ fun LedRunningScreen(
                     )
                 }
             }
-
-            RunningOverlay(
-                remainingMillis = remainingMillis,
-                isScreenPressed = isScreenPressed,
-                onPause = onPause,
-                onReset = onReset
-            )
         }
+
+        RunningOverlay(
+            remainingMillis = remainingMillis,
+            isScreenPressed = isScreenPressed,
+            onPause = onPause,
+            onReset = onReset
+        )
+    }
+}
+
+private data class WaterBubble(
+    var x: Float, // normalized 0..1 horizontal
+    var y: Float, // normalized 0..1 vertical inside bottom pool
+    val radius: Float,
+    val speed: Float,
+    val wobbleSpeed: Float,
+    val wobbleScale: Float,
+    var wobblePhase: Float,
+    val alpha: Float
+)
+
+private data class WaterSplashParticle(
+    var x: Float, // normalized 0..1 horizontal
+    var y: Float, // normalized 0..1 vertical
+    var vx: Float,
+    var vy: Float,
+    var alpha: Float
+)
+
+@Composable
+fun WaterRunningScreen(
+    remainingMillis: Long,
+    totalMillis: Long,
+    onPause: () -> Unit = {},
+    onReset: () -> Unit
+) {
+    KeepScreenOn()
+
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    // Raw device-frame gravity (m/s²), low-pass filtered.
+    var tiltX by remember { mutableFloatStateOf(0f) }
+    var tiltY by remember { mutableFloatStateOf(9.81f) }
+
+    var isScreenPressed by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event == null) return
+                if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
+                    val alpha = 0.2f
+                    val newX = tiltX + alpha * (-event.values[0] - tiltX)
+                    val newY = tiltY + alpha * (event.values[1] - tiltY)
+                    tiltX = newX
+                    tiltY = newY
+                }
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
+        if (accelerometer != null) {
+            sensorManager.registerListener(listener, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+        }
+
+        onDispose {
+            sensorManager?.unregisterListener(listener)
+        }
+    }
+
+    val progressFraction = remember(remainingMillis, totalMillis) {
+        (remainingMillis.toFloat() / totalMillis.toFloat()).coerceIn(0f, 1f)
+    }
+
+    // Phase animation for waves
+    var wavePhase by remember { mutableFloatStateOf(0f) }
+
+    // Spring-damper system to simulate water sloshing
+    var sloshAngle by remember { mutableFloatStateOf(0f) }
+    var sloshVelocity by remember { mutableFloatStateOf(0f) }
+
+    // Gaseous ambient bubbles
+    val maxBubbles = 35
+    val bubbles = remember { mutableStateListOf<WaterBubble>() }
+
+    // Splash particles
+    val maxSplashes = 50
+    val splashes = remember { mutableStateListOf<WaterSplashParticle>() }
+
+    var tick by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        var frameTime = 0L
+        while (true) {
+            withFrameNanos { frameTimeNanos ->
+                if (frameTime == 0L) {
+                    frameTime = frameTimeNanos
+                }
+                val dt = ((frameTimeNanos - frameTime) / 1_000_000_000f).coerceIn(0f, 0.03f)
+                frameTime = frameTimeNanos
+
+                // 1. Update wave phase
+                wavePhase = (wavePhase + 3f * dt) % (2f * Math.PI.toFloat())
+
+                // 2. Spring-damper for sloshing
+                val targetSlosh = (-tiltX / 9.81f).coerceIn(-0.4f, 0.4f)
+                val springK = 35f
+                val damping = 6f
+                val force = (targetSlosh - sloshAngle) * springK
+                sloshVelocity += (force - sloshVelocity * damping) * dt
+                sloshAngle += sloshVelocity * dt
+
+                // 3. Spawning and updating bubbles
+                if (bubbles.size < maxBubbles && Random.nextFloat() < 0.08f) {
+                    bubbles.add(
+                        WaterBubble(
+                            x = Random.nextFloat(), // normalized
+                            y = 1.0f,               // bottom of pool
+                            radius = 2.dp.value + Random.nextFloat() * 4.dp.value,
+                            speed = 40f + Random.nextFloat() * 60f,
+                            wobbleSpeed = 4f + Random.nextFloat() * 8f,
+                            wobbleScale = 3f + Random.nextFloat() * 6f,
+                            wobblePhase = Random.nextFloat() * 2f * Math.PI.toFloat(),
+                            alpha = 0.3f + Random.nextFloat() * 0.4f
+                        )
+                    )
+                }
+
+                // 4. Spawning splash particles where the stream hits
+                // Only spawn if timer is running (progress > 0)
+                if (progressFraction > 0f && Random.nextFloat() < 0.25f) {
+                    val count = Random.nextInt(1, 3)
+                    val bottomLevelFrac = (1f - progressFraction) * 0.45f
+                    val surfaceYFrac = 1f - bottomLevelFrac
+                    for (k in 0 until count) {
+                        if (splashes.size < maxSplashes) {
+                            splashes.add(
+                                WaterSplashParticle(
+                                    x = 0.5f + (Random.nextFloat() - 0.5f) * 0.04f, // centered
+                                    y = surfaceYFrac, // nominal splash hit height
+                                    vx = (Random.nextFloat() - 0.5f) * 120f,
+                                    vy = -60f - Random.nextFloat() * 120f,
+                                    alpha = 0.8f + Random.nextFloat() * 0.2f
+                                )
+                            )
+                        }
+                    }
+                }
+
+                tick++
+            }
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        isScreenPressed = true
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        tryAwaitRelease()
+                        isScreenPressed = false
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }
+                )
+            }
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .align(Alignment.Center)
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val drawTick = tick // trigger recomposition
+
+                val w = size.width
+                val h = size.height
+
+                val pxScale = density
+
+                // Let's define the bottom water level
+                // Bottom pool level increases as progress decreases (fills)
+                val bottomLevelFrac = (1f - progressFraction) * 0.45f
+                val bottomBaseHeight = h * bottomLevelFrac
+
+                // Render 1: Falling water stream in the center (spans from top ceiling h=0 to water surface, with parabolic gravity lean)
+                if (progressFraction > 0f) {
+                    val streamTopY = 0f
+                    val streamBottomY = (h - bottomBaseHeight).coerceAtMost(h)
+                    
+                    val streamPath = Path().apply {
+                        val centerX = w / 2f
+                        val segments = 40
+                        val dy = (streamBottomY - streamTopY) / segments
+                        
+                        moveTo(centerX, streamTopY)
+                        for (i in 1..segments) {
+                            val currY = streamTopY + i * dy
+                            val progress = (currY - streamTopY) / (streamBottomY - streamTopY).coerceAtLeast(1f)
+                            // Parabolic displacement due to gravity: x_offset = gravity * progress^2
+                            val gravityOffset = (tiltX * 36f * pxScale) * (progress * progress)
+                            val xOffset = sin(currY * 0.06f - wavePhase * 4f) * 3.dp.toPx() + gravityOffset
+                            lineTo(centerX + xOffset, currY)
+                        }
+                    }
+                    
+                    drawPath(
+                        path = streamPath,
+                        color = Color(0x3300D2FF),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = 6.dp.toPx(),
+                            cap = StrokeCap.Round
+                        )
+                    )
+                    drawPath(
+                        path = streamPath,
+                        color = PureWhite.copy(alpha = 0.9f),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = 2.dp.toPx(),
+                            cap = StrokeCap.Round
+                        )
+                    )
+                }
+
+                // Render 2: Bottom pool (fills the entire screen width!)
+                if (bottomBaseHeight > 0f) {
+                    val bottomY = h
+                    val targetY = h - bottomBaseHeight
+
+                    val wavePathFront = Path().apply {
+                        moveTo(0f, bottomY)
+                        val segments = 60
+                        val dx = w / segments
+                        for (i in 0..segments) {
+                            val currX = i * dx
+                            val t = i.toFloat() / segments
+                            val slosh = (t - 0.5f) * w * sloshAngle
+                            val wave1 = sin(t * 2 * Math.PI.toFloat() * 1.5f + wavePhase) * 10.dp.toPx()
+                            val wave2 = cos(t * 2 * Math.PI.toFloat() * 2.8f - wavePhase * 1.3f) * 5.dp.toPx()
+                            val currY = (targetY + slosh + wave1 + wave2).coerceIn(0f, bottomY)
+                            lineTo(currX, currY)
+                        }
+                        lineTo(w, bottomY)
+                        close()
+                    }
+
+                    val wavePathBack = Path().apply {
+                        moveTo(0f, bottomY)
+                        val segments = 60
+                        val dx = w / segments
+                        for (i in 0..segments) {
+                            val currX = i * dx
+                            val t = i.toFloat() / segments
+                            val slosh = (t - 0.5f) * w * sloshAngle
+                            val wave1 = sin(t * 2 * Math.PI.toFloat() * 1.8f - wavePhase + 1.2f) * 9.dp.toPx()
+                            val wave2 = cos(t * 2 * Math.PI.toFloat() * 2.2f + wavePhase * 0.8f) * 4.dp.toPx()
+                            val currY = (targetY - 3.dp.toPx() + slosh + wave1 + wave2).coerceIn(0f, bottomY)
+                            lineTo(currX, currY)
+                        }
+                        lineTo(w, bottomY)
+                        close()
+                    }
+
+                    drawPath(path = wavePathBack, color = Color(0x44005C97))
+                    drawPath(path = wavePathFront, color = Color(0x6600C9FF))
+
+                    // Draw & Update ambient bubbles inside bottom pool
+                    val iterator = bubbles.iterator()
+                    while (iterator.hasNext()) {
+                        val bubble = iterator.next()
+                        
+                        bubble.y -= bubble.speed * (1f / 60f) * pxScale
+                        bubble.wobblePhase += bubble.wobbleSpeed * (1f / 60f)
+                        
+                        val bubbleX = bubble.x * w + sin(bubble.wobblePhase) * bubble.wobbleScale * pxScale
+                        val bubbleY = bottomY - (1f - bubble.y) * bottomBaseHeight
+                        
+                        val tNormal = (bubbleX / w).coerceIn(0f, 1f)
+                        val slosh = (tNormal - 0.5f) * w * sloshAngle
+                        val surfaceYAtX = targetY + slosh
+                        
+                        if (bubbleY < surfaceYAtX || bubbleY > bottomY) {
+                            iterator.remove()
+                        } else {
+                            drawCircle(
+                                color = PureWhite.copy(alpha = bubble.alpha),
+                                radius = bubble.radius,
+                                center = Offset(bubbleX, bubbleY),
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
+                            )
+                            drawCircle(
+                                color = PureWhite.copy(alpha = bubble.alpha * 0.5f),
+                                radius = bubble.radius * 0.4f,
+                                center = Offset(bubbleX - bubble.radius * 0.3f, bubbleY - bubble.radius * 0.3f)
+                            )
+                        }
+                    }
+                }
+
+                // Render 3: Splash particles
+                if (progressFraction > 0f && bottomBaseHeight > 0f) {
+                    val bottomY = h
+                    val targetY = h - bottomBaseHeight
+                    val sloshAtCenter = (0.5f - 0.5f) * w * sloshAngle
+                    val hitY = targetY + sloshAtCenter
+
+                    // The hit X position is w/2f + gravityOffset
+                    val hitX = w / 2f + (tiltX * 36f * pxScale)
+
+                    val iterator = splashes.iterator()
+                    while (iterator.hasNext()) {
+                        val splash = iterator.next()
+                        
+                        splash.vy += 240f * (1f / 60f) * pxScale
+                        splash.x += splash.vx * (1f / 60f) / w
+                        splash.y = (splash.y * h + splash.vy * (1f / 60f) * pxScale) / h
+                        splash.alpha -= 1.2f * (1f / 60f)
+
+                        val posX = hitX + (splash.x - 0.5f) * w
+                        val posY = splash.y * h
+
+                        if (posY >= bottomY || splash.alpha <= 0f) {
+                            iterator.remove()
+                        } else {
+                            drawCircle(
+                                color = Color(0xFF88F2FF).copy(alpha = splash.alpha),
+                                radius = 1.5.dp.toPx(),
+                                center = Offset(posX, posY)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        RunningOverlay(
+            remainingMillis = remainingMillis,
+            isScreenPressed = isScreenPressed,
+            onPause = onPause,
+            onReset = onReset
+        )
     }
 }
 
@@ -1279,7 +1560,7 @@ fun FinishedScreen(
 // tilting the phone makes the stream lean to one side. The pile uses a
 // per-column height array and slumps under a slope threshold biased by
 // gravityX so the heap immediately reacts when the device is tilted.
-class ParticleSystem(val maxParticles: Int = 2400) {
+class ParticleSystem(val maxParticles: Int = 4800) {
     val px = FloatArray(maxParticles)
     val py = FloatArray(maxParticles)
     val pvx = FloatArray(maxParticles)
@@ -1287,7 +1568,7 @@ class ParticleSystem(val maxParticles: Int = 2400) {
     val pActive = BooleanArray(maxParticles)
     val pAlpha = FloatArray(maxParticles)
 
-    val numCols = 90
+    val numCols = 180
     val heights = FloatArray(numCols)
 
     // Re-seeded on dimension change so the same surface grain pattern
@@ -1342,14 +1623,14 @@ class ParticleSystem(val maxParticles: Int = 2400) {
         val activeGravityX = safeGravityX * gMult
 
         // Sized so the column-averaged pile reaches the full screen height
-        // exactly when remainingFraction → 0. baseRate ≈ 320 grains/sec.
-        val rawIncrement = (h * numCols * 1000f) / (320f * totalMillis)
+        // exactly when remainingFraction → 0. baseRate ≈ 640 grains/sec.
+        val rawIncrement = (h * numCols * 1000f) / (640f * totalMillis)
         val sandIncrement = rawIncrement.coerceIn(0.02f, 60.0f)
 
         // 1. Spawn falling grains near top-center, with mild jitter and a
         // slight bias toward the gravity direction so the stream visibly leans.
         if (remainingFraction > 0f) {
-            val baseRate = 320f
+            val baseRate = 640f
             val spawnRate = baseRate * (1.5f - remainingFraction)
             spawnAccumulator += spawnRate * dt
 

@@ -1,0 +1,42 @@
+One particle-physics hourglass on a pitch-black background. That's it.
+
+No ads. No network. No analytics. The only permission is VIBRATE.
+
+■ Highlights
+
+• Particle-physics hourglass — every grain is an independent particle that falls, collides, and is absorbed into a pile growing toward the bottom. The pile reaches toward half the screen as the timer ends.
+
+• Tilt-aware — the accelerometer feeds a live gravity vector into the simulation. Tip the phone and the pile pours toward the lower edge. Works flat on a desk, in your hand, at any angle.
+
+• Touch to reveal time — leave it alone and you only see sand. Press anywhere on the running screen and exact HH : MM : SS fades in. Release to return to pure sand.
+
+• Quick presets — one tap on 1m / 3m / 5m / 10m / 25m / 1h fills the HR / MIN / SEC pickers. Your usual timer is two taps away.
+
+• Pause / Resume — stop mid-fall and pick up exactly where you left off. The paused screen shows remaining time plus percent left, both in the same minimal type.
+
+• Remembers your last duration — the HR / MIN / SEC you last started with is preloaded on next launch. Re-running the same timer takes a single tap.
+
+• Soft completion chime — a three-note tone rides the notification stream alongside the vibration pulse, so it respects silent and Do Not Disturb.
+
+• Keep-screen-on while running — the screen stays on only during a running timer. The flag clears the instant you pause, finish, or reset.
+
+■ Made for
+
+• Meditation and breathwork — replace the alarm screen with a falling landscape.
+• Pomodoro focus blocks — double-tap the 25m chip to start.
+• Bedtime 5 minutes, tea steep, workout rest — perceive time visually, without a screen full of widgets.
+
+■ Permissions / Privacy
+
+• No INTERNET permission. The app never contacts any server.
+• No ad SDK, no analytics SDK, no crash-reporting SDK.
+• No location, camera, microphone, or storage requests.
+• VIBRATE is the only permission used, and only for a short pulse on completion.
+
+■ Compatibility
+
+• Android 7.0 (API 24) and up.
+• Tilt response on any device with an accelerometer (i.e., almost every phone and tablet).
+• Dark-mode by design — the background is always pitch black, independent of system dark mode.
+
+This app is a personal project by a single developer and collects no user data.
