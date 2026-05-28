@@ -146,6 +146,31 @@ if ($notesContent -notmatch '<ko-KR>' -or $notesContent -notmatch '<en-US>') {
         "See play_store/release_notes/README.md for the required format."
 }
 
+# Play Console hard limit: each locale block body (excluding the tags)
+# must be 500 Unicode characters or fewer. Over-limit text is silently
+# truncated by Play Console — which is the worst kind of failure — so
+# we abort the export here instead of letting a bad file reach the
+# desktop. This check is the codified version of the rule in
+# ~/.claude/play-store-release-notes.md; do not weaken or skip it.
+$localePattern = '<(ko-KR|en-US|ja-JP|zh-CN|zh-TW)>([\s\S]*?)</\1>'
+$violations = @()
+foreach ($match in [regex]::Matches($notesContent, $localePattern)) {
+    $locale = $match.Groups[1].Value
+    $body = $match.Groups[2].Value.Trim()
+    $len = $body.Length
+    $status = if ($len -gt 500) { 'OVER' } else { 'OK' }
+    Write-Host ("  {0,-7}  {1,4} / 500  {2}" -f $locale, $len, $status)
+    if ($len -gt 500) {
+        $violations += "$locale ($len chars, $($len - 500) over)"
+    }
+}
+if ($violations.Count -gt 0) {
+    throw "Play Console release notes exceed the 500-character limit per locale: " +
+        ($violations -join ', ') +
+        ". Play Console silently truncates over-limit blocks; trim $notesPath before exporting. " +
+        "See ~/.claude/play-store-release-notes.md for the compression priority list."
+}
+
 $targetNotes = Join-Path $desktop "$stem-release-notes.txt"
 Copy-Item -LiteralPath $notesPath -Destination $targetNotes -Force
 
