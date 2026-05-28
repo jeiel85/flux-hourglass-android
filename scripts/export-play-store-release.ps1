@@ -40,6 +40,12 @@ function Resolve-VersionCode {
 function Resolve-DesktopPath {
     param([string]$ExplicitDesktopPath)
 
+    # Resolves to the user's "Desktop\Build" folder. This project — and the
+    # other Android apps on the same machine — collects Play Console-ready
+    # AAB and release-notes files under a single Build/ subfolder rather
+    # than the desktop root, so that other desktop chrome (icons, daily
+    # files) stays uncluttered. The redirected OneDrive desktop is
+    # respected via [Environment]::GetFolderPath('Desktop').
     $candidates = @()
     if ($ExplicitDesktopPath.Trim().Length -gt 0) {
         $candidates += $ExplicitDesktopPath
@@ -54,18 +60,26 @@ function Resolve-DesktopPath {
     }
     $candidates += (Join-Path $HOME "Desktop")
 
+    $desktopRoot = $null
     foreach ($candidate in $candidates) {
         if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Container)) {
-            return (Resolve-Path -LiteralPath $candidate).Path
+            $desktopRoot = (Resolve-Path -LiteralPath $candidate).Path
+            break
         }
     }
-
-    if ($shellDesktop) {
+    if (-not $desktopRoot -and $shellDesktop) {
         New-Item -ItemType Directory -Force -Path $shellDesktop | Out-Null
-        return (Resolve-Path -LiteralPath $shellDesktop).Path
+        $desktopRoot = (Resolve-Path -LiteralPath $shellDesktop).Path
+    }
+    if (-not $desktopRoot) {
+        throw "Could not resolve a Desktop path."
     }
 
-    throw "Could not resolve a Desktop path."
+    $buildDir = Join-Path $desktopRoot "Build"
+    if (-not (Test-Path -LiteralPath $buildDir -PathType Container)) {
+        New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
+    }
+    return (Resolve-Path -LiteralPath $buildDir).Path
 }
 
 function Resolve-ArtifactPath {
@@ -99,10 +113,15 @@ $resolvedVersion = Resolve-Version -ExplicitVersion $Version
 $resolvedCode = Resolve-VersionCode
 $desktop = Resolve-DesktopPath -ExplicitDesktopPath $DesktopPath
 
-# Only the AAB is exported to the desktop. The APK is intentionally NOT
-# copied — Play Console upload uses the AAB, and the APK lives only inside
-# `app/build/outputs/apk/release/` for ad-hoc sideloading. The Play Console
-# release notes file is what users actually need on the desktop.
+# Convention (locked in — see RELEASE.md §5):
+#   Desktop\Build\ receives EXACTLY two files per version:
+#     1. flux-hourglass-vX.Y.Z-vcN.aab          ← Play Console upload
+#     2. flux-hourglass-vX.Y.Z-vcN-release-notes.txt  ← Play Console notes
+#   APKs are NEVER copied to the desktop. They live only inside
+#   app/build/outputs/apk/release/ for ad-hoc sideloading or for the
+#   GitHub Release page (auto-published by .github/workflows/release.yml).
+#   If a stale APK ever lands on the desktop it is sent to the recycle
+#   bin a few lines below.
 $sourceAab = Resolve-ArtifactPath -ExplicitPath $AabPath `
     -RelativeDir "app\build\outputs\bundle\release" `
     -Filter "*.aab" `
@@ -130,11 +149,25 @@ if ($notesContent -notmatch '<ko-KR>' -or $notesContent -notmatch '<en-US>') {
 $targetNotes = Join-Path $desktop "$stem-release-notes.txt"
 Copy-Item -LiteralPath $notesPath -Destination $targetNotes -Force
 
-# Remove any stale APK that an older version of this script left behind.
-$staleApk = Join-Path $desktop "$stem.apk"
-if (Test-Path -LiteralPath $staleApk -PathType Leaf) {
-    Remove-Item -LiteralPath $staleApk -Force
-    Write-Host "Removed stale desktop APK: $staleApk"
+# Remove any stale APK that an older script (or a manual mirror) left
+# behind. Looks in both Desktop\Build\ (the current target) and the
+# Desktop root (where pre-1.3.0 scripts used to drop files). Files are
+# sent to the recycle bin so they remain recoverable for a few weeks.
+Add-Type -AssemblyName Microsoft.VisualBasic | Out-Null
+$desktopRoot = Split-Path -Parent $desktop
+$apkCandidates = @(
+    (Join-Path $desktop "$stem.apk"),
+    (Join-Path $desktopRoot "$stem.apk")
+)
+foreach ($candidate in $apkCandidates) {
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+        [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(
+            $candidate,
+            'OnlyErrorDialogs',
+            'SendToRecycleBin'
+        )
+        Write-Host "Sent stale APK to recycle bin: $candidate"
+    }
 }
 
 Write-Host "Exported Play Store files:"

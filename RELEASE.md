@@ -12,10 +12,15 @@ markscene-android, nightseed-survivor-android 등 같은 머신에 있는 다른
    비밀번호도 같은 폴더에 별도 파일로 백업.
 3. 태그(`vX.Y.Z`)를 푸시하면 GitHub Actions가 자동으로 서명된 APK + AAB를
    빌드해서 GitHub Release를 만들고, 같은 산출물을 `scripts/build_release.ps1`
-   로 로컬에서 만들면 `scripts/export-play-store-release.ps1`이 바탕화면에
-   `flux-hourglass-v{ver}-vc{code}.aab` 이름으로 옮겨 줍니다. 옆 프로젝트의
-   `markleaf-v2.16.0-vc41.aab`, `BrioDo-v1.5.2-vc38.aab`, `PulpitInk-v1.4.0-vc6.aab`
-   와 같은 명명 규칙입니다.
+   로 로컬에서 만들면 `scripts/export-play-store-release.ps1`이
+   **`바탕화면\Build\`** 폴더에 `flux-hourglass-v{ver}-vc{code}.aab` 이름으로
+   옮겨 줍니다. 옆 프로젝트의 `markleaf-v2.16.0-vc41.aab`,
+   `BrioDo-v1.5.2-vc38.aab`, `PulpitInk-v1.4.0-vc6.aab` 와 같은 명명 규칙입니다.
+4. **바탕화면(`Desktop\Build\`)에는 정확히 두 파일만 떨어집니다 —
+   `.aab`와 `-release-notes.txt`**. APK는 절대 복사하지 않습니다.
+   사이드로드용 APK가 필요하면 `app/build/outputs/apk/release/`에서
+   직접 가져가거나 GitHub Release 페이지에서 받습니다. 스크립트는 매 실행마다
+   이 폴더에 잘못 떨어진 stale APK를 휴지통으로 보냅니다.
 
 ## 1. 사전 준비 (최초 1회)
 
@@ -141,14 +146,16 @@ $env:KEY_PASSWORD = "<KEY_PASSWORD>"
 
 1. `./gradlew test`
 2. `./gradlew clean bundleRelease assembleRelease -PVERSION_NAME=1.2.0 -PVERSION_CODE=3`
-3. `scripts\export-play-store-release.ps1`을 호출해서 결과물을 바탕화면으로
-   복사. 파일 이름은 `flux-hourglass-v1.2.0-vc3.aab`,
+3. `scripts\export-play-store-release.ps1`을 호출해서 결과물을
+   **`바탕화면\Build\`** 폴더로 복사. 파일 이름은
+   `flux-hourglass-v1.2.0-vc3.aab`,
    `flux-hourglass-v1.2.0-vc3-release-notes.txt` **두 개만**입니다.
 
-**APK는 바탕화면으로 복사하지 않습니다.** Play Console 업로드에 필요한
-것은 AAB뿐입니다. 사이드로드용 APK가 필요하면
+**APK는 바탕화면(또는 `Build\` 하위)으로 복사하지 않습니다.** Play Console
+업로드에 필요한 것은 AAB뿐입니다. 사이드로드용 APK가 필요하면
 `app/build/outputs/apk/release/app-release.apk`에서 직접 가져가거나, 태그를
-푸시해 GitHub Release에 자동으로 올라온 것을 받아 사용합니다.
+푸시해 GitHub Release에 자동으로 올라온 것을 받아 사용합니다. 잘못 떨어진
+APK는 매 실행마다 휴지통으로 보내집니다.
 
 원본 AAB와 APK는 `app/build/outputs/bundle/release/app-release.aab`와
 `app/build/outputs/apk/release/app-release.apk`에 그대로 남습니다.
@@ -167,7 +174,7 @@ git push origin main vX.Y.Z
 `docs/releases/vX.Y.Z.md`를 본문으로 GitHub Release를 게시합니다.
 
 ## 3. Play Console 업로드
-바탕화면에 떨어진 두 파일만 사용합니다.
+`바탕화면\Build\` 폴더에 떨어진 두 파일만 사용합니다.
 
 - `flux-hourglass-v{ver}-vc{code}.aab` — Play Console Internal/Production
   트랙에 업로드.
@@ -177,7 +184,9 @@ git push origin main vX.Y.Z
   언어별 노트로 분리합니다.
 
 사이드로드용 APK는 `app/build/outputs/apk/release/app-release.apk` 또는 태그
-푸시 후 GitHub Release 페이지에서 받습니다.
+푸시 후 GitHub Release 페이지에서 받습니다. **바탕화면(`Build\` 하위 포함)에
+APK가 보이면 잘못된 상태입니다 — 다음 export 실행 시 자동으로 휴지통으로
+보내집니다.**
 
 ## 4. 트러블슈팅
 
@@ -196,8 +205,10 @@ git push origin main vX.Y.Z
 | Debug APK | `app/build/outputs/apk/debug/*.apk` |
 | Release APK | `app/build/outputs/apk/release/*.apk` (사이드로드 전용) |
 | Release AAB | `app/build/outputs/bundle/release/*.aab` (Play Console 업로드용) |
-| 바탕화면 | `Desktop/flux-hourglass-vX.Y.Z-vcN.aab` + `...-release-notes.txt` |
+| 바탕화면 | `Desktop\Build\flux-hourglass-vX.Y.Z-vcN.aab` + `...-release-notes.txt` |
 | Roborazzi 베이스라인 | `app/src/test/screenshots/*.png` |
 
-**바탕화면에는 AAB와 다국어 release-notes.txt만 떨어집니다.** APK는 일부러
-복사하지 않습니다.
+**바탕화면(`Desktop\Build\`)에는 AAB와 다국어 release-notes.txt만 떨어집니다.**
+APK는 일부러 복사하지 않습니다. 잘못 떨어진 APK는 다음 export 실행 시
+휴지통으로 보내집니다. 이 규약은 `scripts/export-play-store-release.ps1`에
+박제되어 있으며 같은 머신의 다른 Android 프로젝트들과 동일합니다.
