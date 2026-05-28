@@ -1,0 +1,24 @@
+<ko-KR>
+v1.3.0 모래 100% 채움, 자이로 반응, LED 모드
+
+새로 추가
+• LED 그리드 모드 — 화면을 16×32 LED 격자로 채우는 새 타이머. 설정 화면 상단의 SAND / LED 탭으로 전환되며 마지막 선택은 저장됩니다
+• 자이로 반응 — 폰을 기울이면 떨어지는 모래가 중력을 따라 휘고 쌓인 모래도 즉시 낮은 쪽으로 흘러내립니다
+
+개선
+• 모래 100% 채움 — 시간이 끝나면 화면 전체가 모래로 덮입니다. 이전엔 화면 2/3에서 멈췄어요
+• 부드러운 텍스쳐 — 입자를 작게 줄이고 컬럼 수를 90으로 늘려 표면이 곱고 매끄럽습니다
+• 글자 가독성 — 흐릿했던 보조 라벨의 명도와 굵기를 한 단계 올렸습니다
+</ko-KR>
+<en-US>
+v1.3.0 Sand fills 100%, gyro response, LED mode
+
+What's new
+• LED grid mode — a new timer that fills the screen with a 16×32 LED grid. Switch via the SAND / LED tab at the top of setup; your choice is saved
+• Gyro response — tilt the device and falling sand curves with gravity while the piled sand immediately slumps toward the low side
+
+Improved
+• Sand fills 100% — when the timer ends the screen is fully covered. Previously the pile capped at two thirds
+• Smoother texture — smaller grains and almost twice the columns (now 90) for a much finer surface
+• Bolder typography — faint secondary labels gained brightness and weight
+</en-US>
