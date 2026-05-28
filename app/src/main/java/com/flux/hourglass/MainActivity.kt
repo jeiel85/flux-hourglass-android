@@ -27,6 +27,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,6 +40,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -68,6 +70,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -87,11 +90,13 @@ import kotlinx.coroutines.runBlocking
 import com.flux.hourglass.ui.theme.PureBlack
 import com.flux.hourglass.ui.theme.PureWhite
 import com.flux.hourglass.ui.theme.SandWhite
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
@@ -539,6 +544,64 @@ fun RunningScreen(
     }
 }
 
+// Snap orientation derived from the device accelerometer. Four cases are
+// modelled — one per 90° rotation — so the rendered content can be flipped
+// to keep "logical down" aligned with the real-world gravity direction.
+enum class GravityOrient(val rotationDeg: Float, val swapsDimensions: Boolean) {
+    /** Bottom of the device is the gravity-down edge — default portrait. */
+    PORTRAIT(rotationDeg = 0f, swapsDimensions = false),
+    /** Top of the device is the gravity-down edge — held upside down. */
+    UPSIDE_DOWN(rotationDeg = 180f, swapsDimensions = false),
+    /** Left edge of the device is the gravity-down edge — phone rotated CCW. */
+    LANDSCAPE_LEFT_DOWN(rotationDeg = -90f, swapsDimensions = true),
+    /** Right edge of the device is the gravity-down edge — phone rotated CW. */
+    LANDSCAPE_RIGHT_DOWN(rotationDeg = 90f, swapsDimensions = true);
+
+    /**
+     * Projects raw device-frame gravity onto the logical frame so that
+     * `logical.y` always points toward the gravity-down edge.
+     * Input convention: positive `deviceTiltX` = gravity pulls toward the
+     * device's right edge; positive `deviceTiltY` = gravity pulls toward
+     * the device's bottom edge.
+     * Returns `(gravityX_logical, gravityY_logical)`.
+     */
+    fun logicalGravity(deviceTiltX: Float, deviceTiltY: Float): Pair<Float, Float> =
+        when (this) {
+            PORTRAIT -> deviceTiltX to deviceTiltY
+            UPSIDE_DOWN -> -deviceTiltX to -deviceTiltY
+            LANDSCAPE_LEFT_DOWN -> deviceTiltY to -deviceTiltX
+            LANDSCAPE_RIGHT_DOWN -> -deviceTiltY to deviceTiltX
+        }
+
+    companion object {
+        /**
+         * Classifies orientation from device-frame gravity with hysteresis:
+         * the dominant axis must clearly beat the other (1.5×) and exceed
+         * 5 m/s² before we switch, so a phone held near diagonal does not
+         * flip-flop every frame.
+         */
+        fun classify(tiltX: Float, tiltY: Float, current: GravityOrient): GravityOrient {
+            val absX = abs(tiltX)
+            val absY = abs(tiltY)
+            val mag = sqrt(tiltX * tiltX + tiltY * tiltY)
+            // Too weak (free-fall or screen-up flat) — stay where we were.
+            if (mag < 4f) return current
+
+            val candidate = when {
+                absY >= absX && tiltY > 0 -> PORTRAIT
+                absY >= absX && tiltY < 0 -> UPSIDE_DOWN
+                absX > absY && tiltX > 0 -> LANDSCAPE_RIGHT_DOWN
+                else -> LANDSCAPE_LEFT_DOWN
+            }
+            if (candidate == current) return current
+
+            val dominantMag = if (candidate.swapsDimensions) absX else absY
+            val otherMag = if (candidate.swapsDimensions) absY else absX
+            return if (dominantMag > otherMag * 1.5f && dominantMag > 5f) candidate else current
+        }
+    }
+}
+
 @Composable
 private fun RunningOverlay(
     remainingMillis: Long,
@@ -593,53 +656,60 @@ private fun RunningOverlay(
         modifier = Modifier
             .fillMaxSize()
             .navigationBarsPadding()
-            .padding(horizontal = 32.dp, vertical = 24.dp),
+            .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom
     ) {
-        Box(
-            modifier = Modifier
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onPause()
-                        }
-                    )
-                }
-                .testTag("pause_button")
-        ) {
-            Text(
-                text = "P A U S E",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Light,
-                color = PureWhite.copy(alpha = 0.65f),
-                letterSpacing = 3.sp,
-                modifier = Modifier.padding(12.dp)
-            )
-        }
+        ControlPill(
+            label = "P A U S E",
+            tag = "pause_button",
+            onTap = onPause
+        )
+        ControlPill(
+            label = "R E S E T",
+            tag = "reset_button",
+            onTap = onReset
+        )
+    }
+}
 
-        Box(
-            modifier = Modifier
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onReset()
-                        }
-                    )
-                }
-                .testTag("reset_button")
-        ) {
-            Text(
-                text = "R E S E T",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Light,
-                color = PureWhite.copy(alpha = 0.65f),
-                letterSpacing = 3.sp,
-                modifier = Modifier.padding(12.dp)
+/**
+ * Pill-shaped tap target for the running screen's PAUSE / RESET controls.
+ * The semi-transparent black backdrop gives the labels enough contrast to
+ * stay readable when the sand pile or a fully lit LED grid would otherwise
+ * blend the white text into a white background.
+ */
+@Composable
+private fun ControlPill(
+    label: String,
+    tag: String,
+    onTap: () -> Unit,
+) {
+    val haptic = LocalHapticFeedback.current
+    Box(
+        modifier = Modifier
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onTap()
+                    }
+                )
+            }
+            .background(
+                color = PureBlack.copy(alpha = 0.55f),
+                shape = RoundedCornerShape(percent = 50)
             )
-        }
+            .padding(horizontal = 16.dp, vertical = 9.dp)
+            .testTag(tag)
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Light,
+            color = PureWhite.copy(alpha = 0.95f),
+            letterSpacing = 3.sp,
+        )
     }
 }
 
@@ -655,10 +725,12 @@ fun SandRunningScreen(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
-    // Tilt (Gravity) variables — gravityX positive when phone tilts right,
-    // gravityY positive when bottom of phone points down (normal).
+    // Raw device-frame gravity (m/s²), low-pass filtered.
+    //   tiltX > 0 → gravity pulls toward the device's right edge
+    //   tiltY > 0 → gravity pulls toward the device's bottom edge (portrait normal)
     var tiltX by remember { mutableFloatStateOf(0f) }
     var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var orient by remember { mutableStateOf(GravityOrient.PORTRAIT) }
 
     var isScreenPressed by remember { mutableStateOf(false) }
 
@@ -670,13 +742,15 @@ fun SandRunningScreen(
             override fun onSensorChanged(event: SensorEvent?) {
                 if (event == null) return
                 if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
-                    // Sensor X is positive when right side of phone goes up;
-                    // we want positive gravityX to mean "gravity pulls toward
-                    // the right of the screen", which happens when right side
-                    // goes down → negate the raw value.
+                    // Sensor X is positive when right side of phone goes up
+                    // (relative to gravity), so flip the sign to get our
+                    // "positive = gravity-toward-right" convention.
                     val alpha = 0.2f
-                    tiltX = tiltX + alpha * (-event.values[0] - tiltX)
-                    tiltY = tiltY + alpha * (event.values[1] - tiltY)
+                    val newX = tiltX + alpha * (-event.values[0] - tiltX)
+                    val newY = tiltY + alpha * (event.values[1] - tiltY)
+                    tiltX = newX
+                    tiltY = newY
+                    orient = GravityOrient.classify(newX, newY, orient)
                 }
             }
 
@@ -698,7 +772,7 @@ fun SandRunningScreen(
 
     val physics = remember { ParticleSystem() }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(PureBlack)
@@ -714,9 +788,18 @@ fun SandRunningScreen(
                 )
             }
     ) {
+        // For landscape orientations swap layout dimensions so the rotated
+        // child still covers the device area exactly. The child is then
+        // rotated via graphicsLayer so its logical "up" maps to the
+        // device edge furthest from gravity.
+        val swap = orient.swapsDimensions
+        val boxW = if (swap) maxHeight else maxWidth
+        val boxH = if (swap) maxWidth else maxHeight
+
+        val (gxLogical, gyLogical) = orient.logicalGravity(tiltX, tiltY)
         val currentProgressFraction by rememberUpdatedState(progressFraction)
-        val currentTiltX by rememberUpdatedState(tiltX)
-        val currentTiltY by rememberUpdatedState(tiltY)
+        val currentGravityX by rememberUpdatedState(gxLogical)
+        val currentGravityY by rememberUpdatedState(gyLogical)
         var tick by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(Unit) {
@@ -732,8 +815,8 @@ fun SandRunningScreen(
 
                     physics.update(
                         remainingFraction = currentProgressFraction,
-                        gravityX = currentTiltX,
-                        gravityY = currentTiltY,
+                        gravityX = currentGravityX,
+                        gravityY = currentGravityY,
                         dt = dt,
                         totalMillis = totalMillis
                     )
@@ -742,64 +825,71 @@ fun SandRunningScreen(
             }
         }
 
-        Canvas(
-            modifier = Modifier.fillMaxSize()
+        Box(
+            modifier = Modifier
+                .size(boxW, boxH)
+                .align(Alignment.Center)
+                .graphicsLayer(rotationZ = orient.rotationDeg)
         ) {
-            // Read tick state to trigger draw invalidation on every physics update
-            val drawTick = tick
+            Canvas(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Read tick state to trigger draw invalidation on every physics update
+                val drawTick = tick
 
-            val width = size.width
-            val height = size.height
+                val width = size.width
+                val height = size.height
 
-            physics.initDimensions(width, height)
+                physics.initDimensions(width, height)
 
-            val particleRadius = 1.4.dp.toPx()
-            val grainRadius = 1.0.dp.toPx()
+                val particleRadius = 1.4.dp.toPx()
+                val grainRadius = 1.0.dp.toPx()
 
-            // 1. Active falling grains
-            for (i in 0 until physics.maxParticles) {
-                if (physics.pActive[i]) {
-                    drawCircle(
-                        color = PureWhite.copy(alpha = physics.pAlpha[i]),
-                        radius = particleRadius,
-                        center = Offset(physics.px[i], physics.py[i])
-                    )
-                }
-            }
-
-            // 2. Accumulated pile — drawn as fine columns with a soft grain
-            val colWidth = width / physics.numCols
-            val noise = Random(physics.noiseSeed)
-            for (i in 0 until physics.numCols) {
-                val h = physics.heights[i]
-                if (h > 0.5f) {
-                    val x = i * colWidth
-                    drawRect(
-                        color = SandWhite,
-                        topLeft = Offset(x, height - h),
-                        size = Size(colWidth + 0.5f, h)
-                    )
-
-                    // Surface micro-grain: a single jittered highlight per column
-                    val surfaceX = x + noise.nextFloat() * colWidth
-                    val surfaceY = height - h - noise.nextFloat() * 4f
-                    if (surfaceY in 0f..height) {
+                // 1. Active falling grains
+                for (i in 0 until physics.maxParticles) {
+                    if (physics.pActive[i]) {
                         drawCircle(
-                            color = PureWhite.copy(alpha = 0.85f),
-                            radius = grainRadius,
-                            center = Offset(surfaceX, surfaceY)
+                            color = PureWhite.copy(alpha = physics.pAlpha[i]),
+                            radius = particleRadius,
+                            center = Offset(physics.px[i], physics.py[i])
                         )
                     }
                 }
-            }
-        }
 
-        RunningOverlay(
-            remainingMillis = remainingMillis,
-            isScreenPressed = isScreenPressed,
-            onPause = onPause,
-            onReset = onReset
-        )
+                // 2. Accumulated pile — drawn as fine columns with a soft grain
+                val colWidth = width / physics.numCols
+                val noise = Random(physics.noiseSeed)
+                for (i in 0 until physics.numCols) {
+                    val h = physics.heights[i]
+                    if (h > 0.5f) {
+                        val x = i * colWidth
+                        drawRect(
+                            color = SandWhite,
+                            topLeft = Offset(x, height - h),
+                            size = Size(colWidth + 0.5f, h)
+                        )
+
+                        // Surface micro-grain: a single jittered highlight per column
+                        val surfaceX = x + noise.nextFloat() * colWidth
+                        val surfaceY = height - h - noise.nextFloat() * 4f
+                        if (surfaceY in 0f..height) {
+                            drawCircle(
+                                color = PureWhite.copy(alpha = 0.85f),
+                                radius = grainRadius,
+                                center = Offset(surfaceX, surfaceY)
+                            )
+                        }
+                    }
+                }
+            }
+
+            RunningOverlay(
+                remainingMillis = remainingMillis,
+                isScreenPressed = isScreenPressed,
+                onPause = onPause,
+                onReset = onReset
+            )
+        }
     }
 }
 
@@ -811,7 +901,35 @@ fun LedRunningScreen(
     onReset: () -> Unit
 ) {
     KeepScreenOn()
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+
+    var tiltX by remember { mutableFloatStateOf(0f) }
+    var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var orient by remember { mutableStateOf(GravityOrient.PORTRAIT) }
+
+    DisposableEffect(Unit) {
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event == null) return
+                if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
+                    val alpha = 0.2f
+                    val newX = tiltX + alpha * (-event.values[0] - tiltX)
+                    val newY = tiltY + alpha * (event.values[1] - tiltY)
+                    tiltX = newX
+                    tiltY = newY
+                    orient = GravityOrient.classify(newX, newY, orient)
+                }
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+        if (accelerometer != null) {
+            sensorManager.registerListener(listener, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+        }
+        onDispose { sensorManager?.unregisterListener(listener) }
+    }
 
     var isScreenPressed by remember { mutableStateOf(false) }
 
@@ -820,7 +938,7 @@ fun LedRunningScreen(
         else (1f - remainingMillis.toFloat() / totalMillis.toFloat()).coerceIn(0f, 1f)
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(PureBlack)
@@ -836,56 +954,70 @@ fun LedRunningScreen(
                 )
             }
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val width = size.width
-            val height = size.height
+        val swap = orient.swapsDimensions
+        val boxW = if (swap) maxHeight else maxWidth
+        val boxH = if (swap) maxWidth else maxHeight
 
-            val cols = 16
-            val rows = 32
-            val total = cols * rows
+        Box(
+            modifier = Modifier
+                .size(boxW, boxH)
+                .align(Alignment.Center)
+                .graphicsLayer(rotationZ = orient.rotationDeg)
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val width = size.width
+                val height = size.height
 
-            val cellW = width / cols
-            val cellH = height / rows
-            val cell = min(cellW, cellH)
-            val dotSize = cell * 0.62f
-            val corner = CornerRadius(dotSize * 0.2f)
+                val cols = 16
+                val rows = 32
+                val total = cols * rows
 
-            val offsetX = (width - cellW * cols) / 2f
-            val offsetY = (height - cellH * rows) / 2f
+                val cellW = width / cols
+                val cellH = height / rows
+                val cell = min(cellW, cellH)
+                val dotSize = cell * 0.62f
+                val corner = CornerRadius(dotSize * 0.2f)
 
-            val filledExact = elapsedFraction * total
+                val offsetX = (width - cellW * cols) / 2f
+                val offsetY = (height - cellH * rows) / 2f
 
-            for (idx in 0 until total) {
-                // Fill bottom-to-top, left-to-right within each row.
-                val rowFromTop = rows - 1 - (idx / cols)
-                val col = idx % cols
-                val cx = offsetX + col * cellW + (cellW - dotSize) / 2f
-                val cy = offsetY + rowFromTop * cellH + (cellH - dotSize) / 2f
+                val filledExact = elapsedFraction * total
 
-                val alpha = when {
-                    idx + 1 <= filledExact -> 0.95f
-                    idx.toFloat() < filledExact -> {
-                        val frac = (filledExact - idx).coerceIn(0f, 1f)
-                        0.06f + frac * 0.89f
+                for (idx in 0 until total) {
+                    // Fill bottom-to-top, left-to-right within each row
+                    // — bottom in the LOGICAL frame, which is always
+                    // physical gravity-down thanks to the rotated
+                    // wrapper above.
+                    val rowFromTop = rows - 1 - (idx / cols)
+                    val col = idx % cols
+                    val cx = offsetX + col * cellW + (cellW - dotSize) / 2f
+                    val cy = offsetY + rowFromTop * cellH + (cellH - dotSize) / 2f
+
+                    val alpha = when {
+                        idx + 1 <= filledExact -> 0.95f
+                        idx.toFloat() < filledExact -> {
+                            val frac = (filledExact - idx).coerceIn(0f, 1f)
+                            0.06f + frac * 0.89f
+                        }
+                        else -> 0.06f
                     }
-                    else -> 0.06f
+
+                    drawRoundRect(
+                        color = PureWhite.copy(alpha = alpha),
+                        topLeft = Offset(cx, cy),
+                        size = Size(dotSize, dotSize),
+                        cornerRadius = corner
+                    )
                 }
-
-                drawRoundRect(
-                    color = PureWhite.copy(alpha = alpha),
-                    topLeft = Offset(cx, cy),
-                    size = Size(dotSize, dotSize),
-                    cornerRadius = corner
-                )
             }
-        }
 
-        RunningOverlay(
-            remainingMillis = remainingMillis,
-            isScreenPressed = isScreenPressed,
-            onPause = onPause,
-            onReset = onReset
-        )
+            RunningOverlay(
+                remainingMillis = remainingMillis,
+                isScreenPressed = isScreenPressed,
+                onPause = onPause,
+                onReset = onReset
+            )
+        }
     }
 }
 
@@ -1169,9 +1301,24 @@ class ParticleSystem(val maxParticles: Int = 2400) {
 
     fun initDimensions(width: Float, height: Float) {
         if (w == width && h == height) return
+        val oldH = h
         w = width
         h = height
         noiseSeed = (width.toInt() * 31 + height.toInt())
+        // When the device rotates (portrait ↔ landscape) the logical
+        // canvas swaps its short and long edges, so the pile height
+        // measured in pixels needs to be rescaled to preserve the fill
+        // RATIO (heights[i] / h). Without this, a pile that was at 60%
+        // would suddenly look near-empty or overflow after a rotation.
+        if (oldH > 1f && height > 1f && abs(oldH - height) > 1f) {
+            val scale = height / oldH
+            for (i in 0 until numCols) {
+                heights[i] = (heights[i] * scale).coerceIn(0f, h)
+            }
+        }
+        // Active particle positions are stored in the old frame's pixels,
+        // so re-spawn them rather than letting them teleport.
+        for (i in 0 until maxParticles) pActive[i] = false
     }
 
     fun reset() {

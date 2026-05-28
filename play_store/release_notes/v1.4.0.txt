@@ -1,0 +1,20 @@
+<ko-KR>
+v1.4.0 중력 인식 회전 + 또렷한 컨트롤 버튼
+
+새로 추가
+• 중력 인식 회전 — 폰을 옆으로 돌리거나 거꾸로 들면, 모래가 항상 물리적인 12시에서 6시 방향으로 떨어지고 LED도 실제 바닥부터 채워집니다. 핸드폰을 어떻게 잡든 자연스럽게 동작합니다
+
+개선
+• 또렷해진 PAUSE / RESET — 흰색 모래나 LED 위에서도 잘 보이도록 어두운 알약 배경을 깔았습니다
+• 회전 도중 모래 더미가 비례에 맞게 유지되어 갑자기 비거나 넘치지 않습니다
+</ko-KR>
+<en-US>
+v1.4.0 Gravity-aware rotation + readable controls
+
+New
+• Gravity-aware rotation — turn the phone sideways or upside down and sand still falls from physical 12 to 6 o'clock; LEDs fill from the real bottom
+
+Improved
+• Readable PAUSE / RESET — dark pill backdrops keep the labels legible over a white pile or a lit LED grid
+• The pile rescales proportionally across rotations, no more sudden empty or overflowing look
+</en-US>
