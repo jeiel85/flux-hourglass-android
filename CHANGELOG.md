@@ -7,6 +7,16 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-06-13
+
+### Added
+- Premium **Campfire-to-Embers (FIRE) Mode** featuring crossed firewood logs, progressive flame decay, breathing red-hot charcoal, and crackling spark particles.
+- Accelerometer-driven **Interactive Tilt Physics** for fire flames and floating embers.
+
+### Changed
+- Upgraded the Gradle wrapper and project build configuration to **Gradle 9.5.1** to fix Windows Kotlin DSL script compilation conflicts.
+- Converted calibration averages to Float inside `MainActivity.kt` to resolve Kotlin compilation type mismatches.
+
 ## [1.5.0] — 2026-05-28
 
 ### Added

@@ -60,6 +60,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -154,54 +155,67 @@ fun HourglassApp(
     var minutesVal by remember { mutableStateOf(seeded.minutes) }
     var secondsVal by remember { mutableStateOf(seeded.seconds) }
     var modeVal by remember { mutableStateOf(seeded.mode) }
+    var showCalibration by remember { mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
-    when (val current = state) {
-        is TimerState.Setup -> {
-            SetupScreen(
-                hours = hoursVal,
-                minutes = minutesVal,
-                seconds = secondsVal,
-                mode = modeVal,
-                onHoursChange = { hoursVal = it },
-                onMinutesChange = { minutesVal = it },
-                onSecondsChange = { secondsVal = it },
-                onModeChange = { modeVal = it },
-                onPresetSelected = { h, m, s ->
-                    hoursVal = h
-                    minutesVal = m
-                    secondsVal = s
-                },
-                onStart = {
-                    if (hoursVal > 0 || minutesVal > 0 || secondsVal > 0) {
-                        scope.launch {
-                            TimerPreferences.save(context, hoursVal, minutesVal, secondsVal, modeVal)
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        when (val current = state) {
+            is TimerState.Setup -> {
+                SetupScreen(
+                    hours = hoursVal,
+                    minutes = minutesVal,
+                    seconds = secondsVal,
+                    mode = modeVal,
+                    onHoursChange = { hoursVal = it },
+                    onMinutesChange = { minutesVal = it },
+                    onSecondsChange = { secondsVal = it },
+                    onModeChange = { modeVal = it },
+                    onPresetSelected = { h, m, s ->
+                        hoursVal = h
+                        minutesVal = m
+                        secondsVal = s
+                    },
+                    onStart = {
+                        if (hoursVal > 0 || minutesVal > 0 || secondsVal > 0) {
+                            scope.launch {
+                                TimerPreferences.save(context, hoursVal, minutesVal, secondsVal, modeVal)
+                            }
                         }
-                    }
-                    viewModel.startTimer(hoursVal, minutesVal, secondsVal)
-                }
-            )
+                        viewModel.startTimer(hoursVal, minutesVal, secondsVal)
+                    },
+                    onCalibrate = { showCalibration = true }
+                )
+            }
+            is TimerState.Running -> {
+                RunningScreen(
+                    remainingMillis = remainingMillis,
+                    totalMillis = current.totalMillis,
+                    mode = modeVal,
+                    onPause = { viewModel.pauseTimer() },
+                    onReset = { viewModel.resetTimer() }
+                )
+            }
+            is TimerState.Paused -> {
+                PausedScreen(
+                    remainingMillis = current.remainingMillis,
+                    totalMillis = current.totalMillis,
+                    onResume = { viewModel.resumeTimer() },
+                    onReset = { viewModel.resetTimer() }
+                )
+            }
+            is TimerState.Finished -> {
+                FinishedScreen(
+                    onReset = { viewModel.resetTimer() }
+                )
+            }
         }
-        is TimerState.Running -> {
-            RunningScreen(
-                remainingMillis = remainingMillis,
-                totalMillis = current.totalMillis,
-                mode = modeVal,
-                onPause = { viewModel.pauseTimer() },
-                onReset = { viewModel.resetTimer() }
-            )
-        }
-        is TimerState.Paused -> {
-            PausedScreen(
-                remainingMillis = current.remainingMillis,
-                totalMillis = current.totalMillis,
-                onResume = { viewModel.resumeTimer() },
-                onReset = { viewModel.resetTimer() }
-            )
-        }
-        is TimerState.Finished -> {
-            FinishedScreen(
-                onReset = { viewModel.resetTimer() }
+
+        if (showCalibration) {
+            CalibrationScreen(
+                onDismiss = { showCalibration = false },
+                onCalibrated = { showCalibration = false }
             )
         }
     }
@@ -230,7 +244,8 @@ fun SetupScreen(
     mode: DisplayMode = DisplayMode.SAND,
     onModeChange: (DisplayMode) -> Unit = {},
     onPresetSelected: (Int, Int, Int) -> Unit = { _, _, _ -> },
-    onStart: () -> Unit
+    onStart: () -> Unit,
+    onCalibrate: () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -244,43 +259,77 @@ fun SetupScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // App Title
-        Text(
-            text = "H O U R G L A S S",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Light,
-            color = PureWhite.copy(alpha = 0.75f),
-            textAlign = TextAlign.Center,
-            letterSpacing = 3.sp,
-            modifier = Modifier.padding(top = 24.dp)
-        )
-
-        // Mode toggle (SAND / LED / WATER)
+        // App Title and CALI button
         Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .testTag("mode_row"),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ModeTab(
-                label = "S A N D",
-                selected = mode == DisplayMode.SAND,
-                onClick = { onModeChange(DisplayMode.SAND) },
-                tag = "mode_sand"
+            Text(
+                text = "H O U R G L A S S",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Light,
+                color = PureWhite.copy(alpha = 0.75f),
+                textAlign = TextAlign.Center,
+                letterSpacing = 3.sp,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = 24.dp)
             )
-            ModeTab(
-                label = "L E D",
-                selected = mode == DisplayMode.LED,
-                onClick = { onModeChange(DisplayMode.LED) },
-                tag = "mode_led"
-            )
-            ModeTab(
-                label = "W A T E R",
-                selected = mode == DisplayMode.WATER,
-                onClick = { onModeChange(DisplayMode.WATER) },
-                tag = "mode_water"
-            )
+            Box(
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onCalibrate()
+                            }
+                        )
+                    }
+                    .testTag("cali_button")
+                    .padding(top = 24.dp, end = 8.dp)
+            ) {
+                Text(
+                    text = "C A L I",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Light,
+                    color = PureWhite.copy(alpha = 0.55f),
+                    letterSpacing = 2.sp,
+                    modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp)
+                )
+            }
+        }
+
+        // Mode toggles — two rows of 5
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .testTag("mode_column"),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.testTag("mode_row_1"),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ModeTab("S A N D", mode == DisplayMode.SAND, { onModeChange(DisplayMode.SAND) }, "mode_sand")
+                ModeTab("L E D", mode == DisplayMode.LED, { onModeChange(DisplayMode.LED) }, "mode_led")
+                ModeTab("W A T E R", mode == DisplayMode.WATER, { onModeChange(DisplayMode.WATER) }, "mode_water")
+                ModeTab("N E B U L A", mode == DisplayMode.NEBULA, { onModeChange(DisplayMode.NEBULA) }, "mode_nebula")
+                ModeTab("M O S S", mode == DisplayMode.MOSS, { onModeChange(DisplayMode.MOSS) }, "mode_moss")
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.testTag("mode_row_2"),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ModeTab("I N K", mode == DisplayMode.INK, { onModeChange(DisplayMode.INK) }, "mode_ink")
+                ModeTab("C R Y S T A L", mode == DisplayMode.CRYSTAL, { onModeChange(DisplayMode.CRYSTAL) }, "mode_crystal")
+                ModeTab("W A X", mode == DisplayMode.WAX, { onModeChange(DisplayMode.WAX) }, "mode_wax")
+                ModeTab("F L I P", mode == DisplayMode.FLIP, { onModeChange(DisplayMode.FLIP) }, "mode_flip")
+                ModeTab("F I R E", mode == DisplayMode.FIRE, { onModeChange(DisplayMode.FIRE) }, "mode_fire")
+            }
         }
 
         // Quick Presets — minimal text labels
@@ -562,6 +611,48 @@ fun RunningScreen(
             onPause = onPause,
             onReset = onReset
         )
+        DisplayMode.NEBULA -> NebulaRunningScreen(
+            remainingMillis = remainingMillis,
+            totalMillis = totalMillis,
+            onPause = onPause,
+            onReset = onReset
+        )
+        DisplayMode.MOSS -> MossRunningScreen(
+            remainingMillis = remainingMillis,
+            totalMillis = totalMillis,
+            onPause = onPause,
+            onReset = onReset
+        )
+        DisplayMode.INK -> InkRunningScreen(
+            remainingMillis = remainingMillis,
+            totalMillis = totalMillis,
+            onPause = onPause,
+            onReset = onReset
+        )
+        DisplayMode.CRYSTAL -> CrystalRunningScreen(
+            remainingMillis = remainingMillis,
+            totalMillis = totalMillis,
+            onPause = onPause,
+            onReset = onReset
+        )
+        DisplayMode.WAX -> WaxRunningScreen(
+            remainingMillis = remainingMillis,
+            totalMillis = totalMillis,
+            onPause = onPause,
+            onReset = onReset
+        )
+        DisplayMode.FLIP -> FlipRunningScreen(
+            remainingMillis = remainingMillis,
+            totalMillis = totalMillis,
+            onPause = onPause,
+            onReset = onReset
+        )
+        DisplayMode.FIRE -> FireRunningScreen(
+            remainingMillis = remainingMillis,
+            totalMillis = totalMillis,
+            onPause = onPause,
+            onReset = onReset
+        )
     }
 }
 
@@ -695,8 +786,23 @@ fun SandRunningScreen(
     //   tiltY > 0 → gravity pulls toward the device's bottom edge (portrait normal)
     var tiltX by remember { mutableFloatStateOf(0f) }
     var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var tiltZ by remember { mutableFloatStateOf(0f) }
+
+    // Calibration offsets
+    var calX by remember { mutableFloatStateOf(0f) }
+    var calY by remember { mutableFloatStateOf(0f) }
+    var calZ by remember { mutableFloatStateOf(9.81f) }
 
     var isScreenPressed by remember { mutableStateOf(false) }
+
+    // Load calibration
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeCalibration(context).collect { c ->
+            calX = c.x
+            calY = c.y
+            calZ = c.z
+        }
+    }
 
     DisposableEffect(Unit) {
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
@@ -707,10 +813,17 @@ fun SandRunningScreen(
                 if (event == null) return
                 if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
                     val alpha = 0.2f
-                    val newX = tiltX + alpha * (-event.values[0] - tiltX)
-                    val newY = tiltY + alpha * (event.values[1] - tiltY)
-                    tiltX = newX
-                    tiltY = newY
+                    // Raw sensor values
+                    val rawX = -event.values[0]
+                    val rawY = event.values[1]
+                    val rawZ = event.values[2]
+                    // Apply calibration offset
+                    val adjX = rawX - calX
+                    val adjY = rawY - calY
+                    val adjZ = rawZ - calZ
+                    tiltX = tiltX + alpha * (adjX - tiltX)
+                    tiltY = tiltY + alpha * (adjY - tiltY)
+                    tiltZ = tiltZ + alpha * (adjZ - tiltZ)
                 }
             }
 
@@ -856,6 +969,21 @@ fun LedRunningScreen(
 
     var tiltX by remember { mutableFloatStateOf(0f) }
     var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var tiltZ by remember { mutableFloatStateOf(0f) }
+
+    // Calibration offsets
+    var calX by remember { mutableFloatStateOf(0f) }
+    var calY by remember { mutableFloatStateOf(0f) }
+    var calZ by remember { mutableFloatStateOf(9.81f) }
+
+    // Load calibration
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeCalibration(context).collect { c ->
+            calX = c.x
+            calY = c.y
+            calZ = c.z
+        }
+    }
 
     DisposableEffect(Unit) {
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
@@ -865,10 +993,17 @@ fun LedRunningScreen(
                 if (event == null) return
                 if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
                     val alpha = 0.2f
-                    val newX = tiltX + alpha * (-event.values[0] - tiltX)
-                    val newY = tiltY + alpha * (event.values[1] - tiltY)
-                    tiltX = newX
-                    tiltY = newY
+                    // Raw sensor values
+                    val rawX = -event.values[0]
+                    val rawY = event.values[1]
+                    val rawZ = event.values[2]
+                    // Apply calibration offset
+                    val adjX = rawX - calX
+                    val adjY = rawY - calY
+                    val adjZ = rawZ - calZ
+                    tiltX = tiltX + alpha * (adjX - tiltX)
+                    tiltY = tiltY + alpha * (adjY - tiltY)
+                    tiltZ = tiltZ + alpha * (adjZ - tiltZ)
                 }
             }
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -994,8 +1129,23 @@ fun WaterRunningScreen(
     // Raw device-frame gravity (m/s²), low-pass filtered.
     var tiltX by remember { mutableFloatStateOf(0f) }
     var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var tiltZ by remember { mutableFloatStateOf(0f) }
+
+    // Calibration offsets
+    var calX by remember { mutableFloatStateOf(0f) }
+    var calY by remember { mutableFloatStateOf(0f) }
+    var calZ by remember { mutableFloatStateOf(9.81f) }
 
     var isScreenPressed by remember { mutableStateOf(false) }
+
+    // Load calibration
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeCalibration(context).collect { c ->
+            calX = c.x
+            calY = c.y
+            calZ = c.z
+        }
+    }
 
     DisposableEffect(Unit) {
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
@@ -1006,10 +1156,17 @@ fun WaterRunningScreen(
                 if (event == null) return
                 if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
                     val alpha = 0.2f
-                    val newX = tiltX + alpha * (-event.values[0] - tiltX)
-                    val newY = tiltY + alpha * (event.values[1] - tiltY)
-                    tiltX = newX
-                    tiltY = newY
+                    // Raw sensor values
+                    val rawX = -event.values[0]
+                    val rawY = event.values[1]
+                    val rawZ = event.values[2]
+                    // Apply calibration offset
+                    val adjX = rawX - calX
+                    val adjY = rawY - calY
+                    val adjZ = rawZ - calZ
+                    tiltX = tiltX + alpha * (adjX - tiltX)
+                    tiltY = tiltY + alpha * (adjY - tiltY)
+                    tiltZ = tiltZ + alpha * (adjZ - tiltZ)
                 }
             }
 
@@ -1552,6 +1709,1267 @@ fun FinishedScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun CalibrationScreen(
+    onDismiss: () -> Unit,
+    onCalibrated: () -> Unit
+) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+
+    // Live sensor readings
+    var rawX by remember { mutableFloatStateOf(0f) }
+    var rawY by remember { mutableFloatStateOf(0f) }
+    var rawZ by remember { mutableFloatStateOf(9.81f) }
+
+    // Calibration state
+    var calibrationX by remember { mutableFloatStateOf(0f) }
+    var calibrationY by remember { mutableFloatStateOf(0f) }
+    var calibrationZ by remember { mutableFloatStateOf(9.81f) }
+    var isCalibrating by remember { mutableStateOf(false) }
+    var calibrationProgress by remember { mutableIntStateOf(0) }
+    var calibrationMessage by remember { mutableStateOf("") }
+
+    // Load existing calibration
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeCalibration(context).collect { cal ->
+            calibrationX = cal.x
+            calibrationY = cal.y
+            calibrationZ = cal.z
+        }
+    }
+
+    // Sensor listener for live preview
+    DisposableEffect(Unit) {
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event == null) return
+                if (event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
+                    val alpha = 0.1f
+                    rawX = rawX + alpha * (-event.values[0] - rawX)
+                    rawY = rawY + alpha * (event.values[1] - rawY)
+                    rawZ = rawZ + alpha * (event.values[2] - rawZ)
+                }
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
+        if (accelerometer != null) {
+            sensorManager.registerListener(listener, accelerometer, SensorManager.SENSOR_DELAY_GAME)
+        }
+        onDispose { sensorManager?.unregisterListener(listener) }
+    }
+
+    // Calculate calibrated values for display
+    val calX = rawX - calibrationX
+    val calY = rawY - calibrationY
+    val calZ = rawZ - calibrationZ
+    val magnitude = sqrt(calX * calX + calY * calY + calZ * calZ)
+
+    // Calculate tilt angles for visualization
+    val tiltAngleX = atan2(calX, sqrt(calY * calY + calZ * calZ)) * 180 / Math.PI.toFloat()
+    val tiltAngleY = atan2(calY, sqrt(calX * calX + calZ * calZ)) * 180 / Math.PI.toFloat()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Title
+            Text(
+                text = "C A L I B R A T E",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Light,
+                color = PureWhite.copy(alpha = 0.75f),
+                letterSpacing = 3.sp,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+
+            // Live sensor values
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "R A W",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Light,
+                    color = PureWhite.copy(alpha = 0.45f),
+                    letterSpacing = 2.sp
+                )
+                Text(
+                    text = String.format("X: %+.3f\nY: %+.3f\nZ: %+.3f", rawX, rawY, rawZ),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Light,
+                    color = PureWhite.copy(alpha = 0.85f),
+                    letterSpacing = 1.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "C A L I B R A T E D",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Light,
+                    color = PureWhite.copy(alpha = 0.45f),
+                    letterSpacing = 2.sp
+                )
+                Text(
+                    text = String.format("X: %+.3f\nY: %+.3f\nZ: %+.3f", calX, calY, calZ),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Light,
+                    color = PureWhite.copy(alpha = 0.85f),
+                    letterSpacing = 1.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Magnitude indicator
+                Text(
+                    text = "|G| = ${String.format("%.3f", magnitude)} m/s²",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Light,
+                    color = if (abs(magnitude - 9.81f) < 0.2f) PureWhite.copy(alpha = 0.9f) else PureWhite.copy(alpha = 0.6f),
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = String.format("Tilt: X %.1f°  Y %.1f°", tiltAngleX, tiltAngleY),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Light,
+                    color = PureWhite.copy(alpha = 0.6f),
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            // Calibration button / progress
+            if (!isCalibrating) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onPress = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    isCalibrating = true
+                                    calibrationProgress = 0
+                                    calibrationMessage = "H O L D  S T I L L . . ."
+                                }
+                            )
+                        }
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "S E T  C U R R E N T  A S  L E V E L",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Light,
+                            color = PureWhite,
+                            letterSpacing = 2.sp,
+                            modifier = Modifier.padding(vertical = 12.dp, horizontal = 24.dp)
+                        )
+                        Spacer(
+                            modifier = Modifier
+                                .width(120.dp)
+                                .height(1.dp)
+                                .background(PureWhite.copy(alpha = 0.85f))
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = calibrationMessage,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Light,
+                        color = PureWhite.copy(alpha = 0.9f),
+                        letterSpacing = 2.sp,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    // Progress bar
+                    Box(
+                        modifier = Modifier
+                            .width(200.dp)
+                            .height(2.dp)
+                            .background(PureWhite.copy(alpha = 0.2f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width((200f * calibrationProgress / 60).dp)
+                                .height(2.dp)
+                                .background(PureWhite.copy(alpha = 0.9f))
+                        )
+                    }
+
+                    Text(
+                        text = "$calibrationProgress / 60",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Light,
+                        color = PureWhite.copy(alpha = 0.6f),
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+
+            // Dismiss button
+            Box(
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onDismiss()
+                            }
+                        )
+                    }
+                    .padding(top = 8.dp, bottom = 24.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "D O N E",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Light,
+                        color = PureWhite.copy(alpha = 0.7f),
+                        letterSpacing = 3.sp,
+                        modifier = Modifier.padding(vertical = 12.dp, horizontal = 24.dp)
+                    )
+                    Spacer(
+                        modifier = Modifier
+                            .width(40.dp)
+                            .height(1.dp)
+                            .background(PureWhite.copy(alpha = 0.4f))
+                    )
+                }
+            }
+        }
+    }
+
+    // Calibration logic
+    LaunchedEffect(isCalibrating, calibrationProgress) {
+        if (!isCalibrating) return@LaunchedEffect
+
+        val samplesX = mutableListOf<Float>()
+        val samplesY = mutableListOf<Float>()
+        val samplesZ = mutableListOf<Float>()
+
+        while (calibrationProgress < 60 && isCalibrating) {
+            kotlinx.coroutines.delay(50)
+            samplesX.add(rawX)
+            samplesY.add(rawY)
+            samplesZ.add(rawZ)
+            calibrationProgress++
+        }
+
+        if (calibrationProgress >= 60 && isCalibrating) {
+            val avgX = samplesX.average().toFloat()
+            val avgY = samplesY.average().toFloat()
+            val avgZ = samplesZ.average().toFloat()
+            val mag = sqrt(avgX * avgX + avgY * avgY + avgZ * avgZ)
+
+            // Scale Z to 9.81 (gravity magnitude)
+            val scale = if (mag > 0.1f) 9.81f / mag else 1f
+
+            val newCal = CalibrationData(
+                x = avgX,
+                y = avgY,
+                z = avgZ * scale
+            )
+
+            scope.launch {
+                TimerPreferences.saveCalibration(context, newCal)
+            }
+
+            calibrationX = newCal.x
+            calibrationY = newCal.y
+            calibrationZ = newCal.z
+            calibrationMessage = "D O N E !"
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+            kotlinx.coroutines.delay(800)
+            isCalibrating = false
+            onCalibrated()
+        }
+    }
+}
+
+// ============================================================
+// NEBULA — gravitational clustering, spiral galaxy formation
+// ============================================================
+@Composable
+fun NebulaRunningScreen(
+    remainingMillis: Long, totalMillis: Long,
+    onPause: () -> Unit = {}, onReset: () -> Unit
+) {
+    KeepScreenOn()
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    var tiltX by remember { mutableFloatStateOf(0f) }
+    var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var calX by remember { mutableFloatStateOf(0f) }
+    var calY by remember { mutableFloatStateOf(0f) }
+    var calZ by remember { mutableFloatStateOf(9.81f) }
+
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeCalibration(context).collect { c ->
+            calX = c.x; calY = c.y; calZ = c.z
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val acc = sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent?) {
+                if (e == null) return
+                val alpha = 0.2f
+                val ax = (-e.values[0] - calX); val ay = (e.values[1] - calY)
+                tiltX = tiltX + alpha * (ax - tiltX)
+                tiltY = tiltY + alpha * (ay - tiltY)
+            }
+            override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+        }
+        if (acc != null) sm?.registerListener(listener, acc, SensorManager.SENSOR_DELAY_GAME)
+        onDispose { sm?.unregisterListener(listener) }
+    }
+
+    val progress = remember(remainingMillis, totalMillis) {
+        1f - (remainingMillis.toFloat() / totalMillis.toFloat()).coerceIn(0f, 1f)
+    }
+    var isPressed by remember { mutableStateOf(false) }
+    var tick by remember { mutableIntStateOf(0) }
+    val stars = remember { List(600) {
+        floatArrayOf(
+            Random.nextFloat(), Random.nextFloat(),
+            Random.nextFloat() * 2f - 1f, Random.nextFloat() * 2f - 1f,
+            Random.nextFloat() * 0.5f + 0.3f, Random.nextFloat() * 360f
+        )
+    } }
+
+    LaunchedEffect(Unit) {
+        var ft = 0L
+        while (true) {
+            withFrameNanos { n ->
+                if (ft == 0L) ft = n
+                ft = n; tick++
+            }
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().background(PureBlack)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    isPressed = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    tryAwaitRelease(); isPressed = false; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                })
+            }
+    ) {
+        val curTiltX by rememberUpdatedState(tiltX)
+        val curTiltY by rememberUpdatedState(tiltY)
+        Box(modifier = Modifier.fillMaxSize().align(Alignment.Center)) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width; val h = size.height
+                val cx = w / 2f + curTiltX * 8f; val cy = h * 0.45f + curTiltY * 8f
+                val armAngle = progress * 8f
+                val visibleCount = (progress * stars.size).toInt().coerceAtLeast(20)
+
+                for (i in 0 until min(visibleCount, stars.size)) {
+                    val s = stars[i]
+                    val dist = s[2] * 0.5f + 0.5f
+                    val angle = s[3] * Math.PI.toFloat() + armAngle * (1f - dist * 0.7f)
+                    val r = dist * min(w, h) * 0.42f
+                    val sx = cx + cos(angle) * r + (curTiltX * 3f * dist)
+                    val sy = cy + sin(angle) * r * 0.7f + (curTiltY * 3f * dist)
+
+                    val cluster = (1f - dist) * 0.6f
+                    val alpha = (s[4] * 0.6f + 0.4f * cluster)
+                    val hue = (0.55f + dist * 0.3f + curTiltX * 0.005f)
+                    val color = Color(android.graphics.Color.HSVToColor(
+                        floatArrayOf(hue * 360f, 0.3f + cluster * 0.5f, 0.6f + cluster * 0.4f)
+                    ))
+                    val radius = (1f + cluster * 2f) * s[5].dp.toPx()
+                    drawCircle(color = Color(0x22000000), radius = radius * 4f, center = Offset(sx, sy))
+                    drawCircle(color = color.copy(alpha = alpha), radius = radius, center = Offset(sx, sy))
+                }
+            }
+        }
+        RunningOverlay(remainingMillis, isPressed, onPause, onReset)
+    }
+}
+
+// ============================================================
+// MOSS — organic branching growth (diffusion-limited aggregation)
+// ============================================================
+@Composable
+fun MossRunningScreen(
+    remainingMillis: Long, totalMillis: Long,
+    onPause: () -> Unit = {}, onReset: () -> Unit
+) {
+    KeepScreenOn()
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    var tiltX by remember { mutableFloatStateOf(0f) }
+    var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var calX by remember { mutableFloatStateOf(0f) }
+    var calY by remember { mutableFloatStateOf(0f) }
+    var calZ by remember { mutableFloatStateOf(9.81f) }
+
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeCalibration(context).collect { c ->
+            calX = c.x; calY = c.y; calZ = c.z
+        }
+    }
+    DisposableEffect(Unit) {
+        val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val acc = sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent?) {
+                if (e == null) return
+                val alpha = 0.2f
+                val ax = (-e.values[0] - calX); val ay = (e.values[1] - calY)
+                tiltX = tiltX + alpha * (ax - tiltX)
+                tiltY = tiltY + alpha * (ay - tiltY)
+            }
+            override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+        }
+        if (acc != null) sm?.registerListener(listener, acc, SensorManager.SENSOR_DELAY_GAME)
+        onDispose { sm?.unregisterListener(listener) }
+    }
+
+    val progress = remember(remainingMillis, totalMillis) {
+        1f - (remainingMillis.toFloat() / totalMillis.toFloat()).coerceIn(0f, 1f)
+    }
+    var isPressed by remember { mutableStateOf(false) }
+    var tick by remember { mutableIntStateOf(0) }
+
+    // Growing branches
+    data class Branch(val x: Float, val y: Float, val angle: Float, val len: Float, val thick: Float)
+    val branches = remember { mutableStateListOf(Branch(0.5f, 1f, -Math.PI.toFloat() / 2f, 0.08f, 6f)) }
+    var growth by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(Unit) {
+        var ft = 0L
+        while (true) {
+            withFrameNanos { n ->
+                if (ft == 0L) ft = n
+                val dt = ((n - ft) / 1_000_000_000f).coerceIn(0f, 0.03f)
+                ft = n
+                growth += dt * 4f
+                val target = (progress * 400).toInt()
+                while (branches.size < target && branches.size < 800) {
+                    val parent = branches[Random.nextInt(branches.size)]
+                    val a = parent.angle + (Random.nextFloat() - 0.5f) * 1.2f
+                    val l = parent.len * (0.75f + Random.nextFloat() * 0.2f)
+                    val t = parent.thick * 0.82f
+                    val nx = parent.x + cos(a) * l
+                    val ny = parent.y + sin(a) * l
+                    if (ny > 0.02f) branches.add(Branch(nx, ny, a, l, t.coerceAtLeast(0.5f)))
+                }
+                tick++
+            }
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().background(PureBlack)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    isPressed = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    tryAwaitRelease(); isPressed = false; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                })
+            }
+    ) {
+        Box(modifier = Modifier.fillMaxSize().align(Alignment.Center)) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width; val h = size.height
+                for (b in branches) {
+                    val px = b.x * w; val py = b.y * h
+                    val color = Color(0xff2d5a1e).copy(alpha = (b.thick / 6f).coerceIn(0.1f, 0.7f))
+                    drawCircle(color = color, radius = b.thick.dp.toPx(), center = Offset(px, py))
+                }
+            }
+        }
+        RunningOverlay(remainingMillis, isPressed, onPause, onReset)
+    }
+}
+
+// ============================================================
+// INK — ink diffusion in water (random walk with gravity)
+// ============================================================
+@Composable
+fun InkRunningScreen(
+    remainingMillis: Long, totalMillis: Long,
+    onPause: () -> Unit = {}, onReset: () -> Unit
+) {
+    KeepScreenOn()
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    var tiltX by remember { mutableFloatStateOf(0f) }
+    var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var calX by remember { mutableFloatStateOf(0f) }
+    var calY by remember { mutableFloatStateOf(0f) }
+    var calZ by remember { mutableFloatStateOf(9.81f) }
+
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeCalibration(context).collect { c ->
+            calX = c.x; calY = c.y; calZ = c.z
+        }
+    }
+    DisposableEffect(Unit) {
+        val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val acc = sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent?) {
+                if (e == null) return
+                val alpha = 0.2f
+                val ax = (-e.values[0] - calX); val ay = (e.values[1] - calY)
+                tiltX = tiltX + alpha * (ax - tiltX)
+                tiltY = tiltY + alpha * (ay - tiltY)
+            }
+            override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+        }
+        if (acc != null) sm?.registerListener(listener, acc, SensorManager.SENSOR_DELAY_GAME)
+        onDispose { sm?.unregisterListener(listener) }
+    }
+
+    val progress = remember(remainingMillis, totalMillis) {
+        1f - (remainingMillis.toFloat() / totalMillis.toFloat()).coerceIn(0f, 1f)
+    }
+    var isPressed by remember { mutableStateOf(false) }
+    var tick by remember { mutableIntStateOf(0) }
+
+    data class InkDrop(var x: Float, var y: Float, var age: Float)
+    val drops = remember { mutableStateListOf<InkDrop>() }
+
+    LaunchedEffect(Unit) {
+        var ft = 0L
+        while (true) {
+            withFrameNanos { n ->
+                if (ft == 0L) ft = n
+                val dt = ((n - ft) / 1_000_000_000f).coerceIn(0f, 0.03f)
+                ft = n
+
+                if (Random.nextFloat() < 0.3f) {
+                    drops.add(InkDrop(0.5f + (Random.nextFloat() - 0.5f) * 0.1f, 0.02f, 0f))
+                }
+
+                val iter = drops.iterator()
+                while (iter.hasNext()) {
+                    val d = iter.next()
+                    d.x += (Random.nextFloat() - 0.5f) * 0.008f + tiltX * 0.001f
+                    d.y += (0.002f + tiltY * 0.0001f) + (Random.nextFloat() - 0.5f) * 0.004f
+                    d.age += dt
+                    if (d.y > 1f || d.age > 15f) iter.remove()
+                }
+
+                val maxDrops = (progress * 300).toInt() + 20
+                while (drops.size > maxDrops) drops.removeAt(0)
+                tick++
+            }
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().background(PureBlack)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    isPressed = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    tryAwaitRelease(); isPressed = false; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                })
+            }
+    ) {
+        Box(modifier = Modifier.fillMaxSize().align(Alignment.Center)) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width; val h = size.height
+                for (d in drops) {
+                    val alpha = (1f - d.age / 15f).coerceIn(0f, 0.5f)
+                    val radius = (1.5f + d.age * 2f).dp.toPx()
+                    val color = Color(0xff1a3a5c).copy(alpha = alpha)
+                    drawCircle(color = color, radius = radius, center = Offset(d.x * w, d.y * h))
+                    if (d.age < 3f) {
+                        drawCircle(color = Color(0xff2a5a8c).copy(alpha = alpha * 0.6f),
+                            radius = radius * 0.5f, center = Offset(d.x * w, d.y * h))
+                    }
+                }
+            }
+        }
+        RunningOverlay(remainingMillis, isPressed, onPause, onReset)
+    }
+}
+
+// ============================================================
+// CRYSTAL — snowflake-like fractal branching
+// ============================================================
+@Composable
+fun CrystalRunningScreen(
+    remainingMillis: Long, totalMillis: Long,
+    onPause: () -> Unit = {}, onReset: () -> Unit
+) {
+    KeepScreenOn()
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    var tiltX by remember { mutableFloatStateOf(0f) }
+    var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var calX by remember { mutableFloatStateOf(0f) }
+    var calY by remember { mutableFloatStateOf(0f) }
+    var calZ by remember { mutableFloatStateOf(9.81f) }
+
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeCalibration(context).collect { c ->
+            calX = c.x; calY = c.y; calZ = c.z
+        }
+    }
+    DisposableEffect(Unit) {
+        val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val acc = sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent?) {
+                if (e == null) return
+                val alpha = 0.2f
+                val ax = (-e.values[0] - calX); val ay = (e.values[1] - calY)
+                tiltX = tiltX + alpha * (ax - tiltX)
+                tiltY = tiltY + alpha * (ay - tiltY)
+            }
+            override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+        }
+        if (acc != null) sm?.registerListener(listener, acc, SensorManager.SENSOR_DELAY_GAME)
+        onDispose { sm?.unregisterListener(listener) }
+    }
+
+    val progress = remember(remainingMillis, totalMillis) {
+        1f - (remainingMillis.toFloat() / totalMillis.toFloat()).coerceIn(0f, 1f)
+    }
+    var isPressed by remember { mutableStateOf(false) }
+    var tick by remember { mutableIntStateOf(0) }
+
+    data class CrystalSeg(val x1: Float, val y1: Float, val x2: Float, val y2: Float, val thick: Float, val hue: Float)
+    val segs = remember { mutableStateListOf<CrystalSeg>() }
+    var grown by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(Unit) {
+        var ft = 0L
+        while (true) {
+            withFrameNanos { n ->
+                if (ft == 0L) ft = n
+                val dt = ((n - ft) / 1_000_000_000f).coerceIn(0f, 0.03f)
+                ft = n
+                grown += dt * 6f
+                val target = (progress * 350).toInt()
+                while (segs.size < target && segs.size < 1000) {
+                    val baseX = 0.5f; val baseY = 0.98f
+                    if (segs.isEmpty()) {
+                        segs.add(CrystalSeg(baseX, baseY, baseX, baseY - 0.06f, 4f, 0.55f))
+                    } else {
+                        val p = segs[Random.nextInt(segs.size)]
+                        val len = (0.02f + Random.nextFloat() * 0.04f) * (1f - progress * 0.3f)
+                        val angle = atan2((p.y2 - p.y1).toDouble(), (p.x2 - p.x1).toDouble()).toFloat()
+                        val branchAngle = angle + (if (Random.nextBoolean()) 1f else -1f) * (0.4f + Random.nextFloat() * 0.6f)
+                        val nx = p.x2 + cos(branchAngle) * len
+                        val ny = p.y2 + sin(branchAngle) * len
+                        val thick = p.thick * 0.75f
+                        if (thick > 0.3f && ny < 1f && ny > 0f) {
+                            segs.add(CrystalSeg(p.x2, p.y2, nx, ny, thick, p.hue + (Random.nextFloat() - 0.5f) * 0.05f))
+                        }
+                    }
+                }
+                tick++
+            }
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().background(PureBlack)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    isPressed = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    tryAwaitRelease(); isPressed = false; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                })
+            }
+    ) {
+        Box(modifier = Modifier.fillMaxSize().align(Alignment.Center)) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width; val h = size.height
+                for (s in segs) {
+                    val color = Color(android.graphics.Color.HSVToColor(
+                        floatArrayOf(s.hue * 360f, 0.3f, 0.9f)
+                    )).copy(alpha = (s.thick / 4f).coerceIn(0.15f, 0.8f))
+                    drawLine(color = color, start = Offset(s.x1 * w, s.y1 * h),
+                        end = Offset(s.x2 * w, s.y2 * h), strokeWidth = s.thick.dp.toPx())
+                    if (s.thick > 2f) {
+                        drawLine(color = PureWhite.copy(alpha = 0.15f),
+                            start = Offset(s.x1 * w, s.y1 * h),
+                            end = Offset(s.x2 * w, s.y2 * h), strokeWidth = s.thick.dp.toPx() * 2f)
+                    }
+                }
+            }
+        }
+        RunningOverlay(remainingMillis, isPressed, onPause, onReset)
+    }
+}
+
+// ============================================================
+// WAX — melting candle, dripping and pooling
+// ============================================================
+@Composable
+fun WaxRunningScreen(
+    remainingMillis: Long, totalMillis: Long,
+    onPause: () -> Unit = {}, onReset: () -> Unit
+) {
+    KeepScreenOn()
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    var tiltX by remember { mutableFloatStateOf(0f) }
+    var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var calX by remember { mutableFloatStateOf(0f) }
+    var calY by remember { mutableFloatStateOf(0f) }
+    var calZ by remember { mutableFloatStateOf(9.81f) }
+
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeCalibration(context).collect { c ->
+            calX = c.x; calY = c.y; calZ = c.z
+        }
+    }
+    DisposableEffect(Unit) {
+        val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val acc = sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent?) {
+                if (e == null) return
+                val alpha = 0.2f
+                val ax = (-e.values[0] - calX); val ay = (e.values[1] - calY)
+                tiltX = tiltX + alpha * (ax - tiltX)
+                tiltY = tiltY + alpha * (ay - tiltY)
+            }
+            override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+        }
+        if (acc != null) sm?.registerListener(listener, acc, SensorManager.SENSOR_DELAY_GAME)
+        onDispose { sm?.unregisterListener(listener) }
+    }
+
+    val progress = remember(remainingMillis, totalMillis) {
+        1f - (remainingMillis.toFloat() / totalMillis.toFloat()).coerceIn(0f, 1f)
+    }
+    var isPressed by remember { mutableStateOf(false) }
+    var tick by remember { mutableIntStateOf(0) }
+
+    data class WaxDrop(var x: Float, var y: Float, var vy: Float, var size: Float)
+    val drops = remember { mutableStateListOf<WaxDrop>() }
+    val poolHeights = remember { FloatArray(40) }
+
+    LaunchedEffect(Unit) {
+        var ft = 0L
+        while (true) {
+            withFrameNanos { n ->
+                if (ft == 0L) ft = n
+                val dt = ((n - ft) / 1_000_000_000f).coerceIn(0f, 0.03f)
+                ft = n
+
+                if (Random.nextFloat() < 0.12f) {
+                    drops.add(WaxDrop(0.3f + Random.nextFloat() * 0.4f, 0.02f, 0f, 2f + Random.nextFloat() * 3f))
+                }
+
+                val iter = drops.iterator()
+                while (iter.hasNext()) {
+                    val d = iter.next()
+                    d.vy += (150f + tiltY * 5f) * dt
+                    d.y += d.vy * dt / 500f
+                    d.x += tiltX * dt * 0.3f
+                    if (d.y >= 1f) {
+                        val col = (d.x * poolHeights.size).toInt().coerceIn(0, poolHeights.size - 1)
+                        poolHeights[col] = (poolHeights[col] + d.size * 0.003f).coerceAtMost(0.3f)
+                        iter.remove()
+                    }
+                }
+
+                // Smooth pool
+                val passes = 4
+                for (p in 0 until passes) {
+                    for (i in 1 until poolHeights.size - 1) {
+                        val avg = (poolHeights[i - 1] + poolHeights[i + 1]) * 0.5f
+                        poolHeights[i] = poolHeights[i] + (avg - poolHeights[i]) * 0.3f
+                    }
+                }
+                tick++
+            }
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().background(PureBlack)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    isPressed = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    tryAwaitRelease(); isPressed = false; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                })
+            }
+    ) {
+        Box(modifier = Modifier.fillMaxSize().align(Alignment.Center)) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width; val h = size.height
+
+                // Candle body
+                val candleH = (1f - progress) * h * 0.5f + 10f
+                val candleW = w * 0.12f
+                val cx = w / 2f
+                drawRoundRect(color = Color(0xfff5e6c8), topLeft = Offset(cx - candleW / 2f, h - candleH),
+                    size = Size(candleW, candleH), cornerRadius = CornerRadius(candleW * 0.15f))
+
+                // Flame
+                val flameH = 30.dp.toPx() * (1f - progress * 0.5f)
+                drawCircle(color = Color(0xffffaa33), radius = flameH * 0.5f,
+                    center = Offset(cx, h - candleH - flameH * 0.3f))
+                drawCircle(color = Color(0xffffffaa), radius = flameH * 0.2f,
+                    center = Offset(cx, h - candleH - flameH * 0.3f))
+
+                // Pool at bottom
+                for (i in poolHeights.indices) {
+                    if (poolHeights[i] > 0.001f) {
+                        val ph = poolHeights[i] * h
+                        val pw = w / poolHeights.size
+                        drawRect(color = Color(0x88f5e6c8), topLeft = Offset(i * pw, h - ph),
+                            size = Size(pw + 1f, ph))
+                    }
+                }
+
+                // Falling drops
+                for (d in drops) {
+                    drawCircle(color = Color(0xffe8d5a3), radius = d.size.dp.toPx(),
+                        center = Offset(d.x * w, d.y * h))
+                }
+            }
+        }
+        RunningOverlay(remainingMillis, isPressed, onPause, onReset)
+    }
+}
+
+// ============================================================
+// FLIP — hourglass flip animation (3D tumble)
+// ============================================================
+@Composable
+fun FlipRunningScreen(
+    remainingMillis: Long, totalMillis: Long,
+    onPause: () -> Unit = {}, onReset: () -> Unit
+) {
+    KeepScreenOn()
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    var tiltX by remember { mutableFloatStateOf(0f) }
+    var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var calX by remember { mutableFloatStateOf(0f) }
+    var calY by remember { mutableFloatStateOf(0f) }
+    var calZ by remember { mutableFloatStateOf(9.81f) }
+
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeCalibration(context).collect { c ->
+            calX = c.x; calY = c.y; calZ = c.z
+        }
+    }
+    DisposableEffect(Unit) {
+        val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val acc = sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent?) {
+                if (e == null) return
+                val alpha = 0.2f
+                val ax = (-e.values[0] - calX); val ay = (e.values[1] - calY)
+                tiltX = tiltX + alpha * (ax - tiltX)
+                tiltY = tiltY + alpha * (ay - tiltY)
+            }
+            override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+        }
+        if (acc != null) sm?.registerListener(listener, acc, SensorManager.SENSOR_DELAY_GAME)
+        onDispose { sm?.unregisterListener(listener) }
+    }
+
+    val progress = remember(remainingMillis, totalMillis) {
+        1f - (remainingMillis.toFloat() / totalMillis.toFloat()).coerceIn(0f, 1f)
+    }
+    var isPressed by remember { mutableStateOf(false) }
+    var tick by remember { mutableIntStateOf(0) }
+
+    data class FlipParticle(var x: Float, var y: Float, var vx: Float, var vy: Float, var alpha: Float, val size: Float)
+    val particles = remember { mutableStateListOf<FlipParticle>() }
+
+    LaunchedEffect(Unit) {
+        var ft = 0L
+        while (true) {
+            withFrameNanos { n ->
+                if (ft == 0L) ft = n
+                val dt = ((n - ft) / 1_000_000_000f).coerceIn(0f, 0.03f)
+                ft = n
+
+                // Spawn particles from both ends
+                if (Random.nextFloat() < 0.5f) {
+                    val fromTop = Random.nextBoolean()
+                    particles.add(FlipParticle(
+                        x = 0.5f + (Random.nextFloat() - 0.5f) * 0.15f,
+                        y = if (fromTop) 0.02f else 0.98f,
+                        vx = (Random.nextFloat() - 0.5f) * 0.3f,
+                        vy = if (fromTop) 0.2f else -0.2f,
+                        alpha = 0.8f, size = 1f + Random.nextFloat() * 3f
+                    ))
+                }
+
+                val gravityBias = tiltX * 0.1f
+                val iter = particles.iterator()
+                while (iter.hasNext()) {
+                    val p = iter.next()
+                    p.x += p.vx * dt + gravityBias * dt
+                    p.y += p.vy * dt
+                    p.vy += 0.08f * dt
+                    p.alpha -= dt * 0.3f
+                    if (p.alpha <= 0f || p.x < -0.1f || p.x > 1.1f || p.y < -0.1f || p.y > 1.1f) iter.remove()
+                }
+
+                val maxP = (progress * 150 + 50).toInt()
+                while (particles.size > maxP) particles.removeAt(0)
+                tick++
+            }
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().background(PureBlack)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    isPressed = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    tryAwaitRelease(); isPressed = false; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                })
+            }
+    ) {
+        val flipAngle = (progress * 360f)
+        Box(modifier = Modifier.fillMaxSize().align(Alignment.Center)) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width; val h = size.height
+
+                // Hourglass outline (two triangles meeting at center)
+                val hw = w * 0.25f; val hh = h * 0.35f
+                val cx = w / 2f; val cy = h / 2f
+                val path = Path().apply {
+                    moveTo(cx - hw, cy - hh); lineTo(cx + hw, cy - hh)
+                    lineTo(cx, cy); close()
+                    moveTo(cx - hw, cy + hh); lineTo(cx + hw, cy + hh)
+                    lineTo(cx, cy); close()
+                }
+                drawPath(path, color = PureWhite.copy(alpha = 0.08f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx()))
+
+                // Particles flowing through
+                for (p in particles) {
+                    val col = Color(android.graphics.Color.HSVToColor(
+                        floatArrayOf((p.x * 60f + flipAngle) % 360f, 0.6f, 0.9f)
+                    )).copy(alpha = p.alpha.coerceIn(0f, 0.9f))
+                    drawCircle(color = col, radius = p.size.dp.toPx(), center = Offset(p.x * w, p.y * h))
+                }
+            }
+        }
+        RunningOverlay(remainingMillis, isPressed, onPause, onReset)
+    }
+}
+
+// ============================================================
+// FIRE (불멍) — blazes bright at start, dies down over time
+// ============================================================
+@Composable
+fun FireRunningScreen(
+    remainingMillis: Long, totalMillis: Long,
+    onPause: () -> Unit = {}, onReset: () -> Unit
+) {
+    KeepScreenOn()
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    var tiltX by remember { mutableFloatStateOf(0f) }
+    var tiltY by remember { mutableFloatStateOf(9.81f) }
+    var calX by remember { mutableFloatStateOf(0f) }
+    var calY by remember { mutableFloatStateOf(0f) }
+    var calZ by remember { mutableFloatStateOf(9.81f) }
+
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeCalibration(context).collect { c ->
+            calX = c.x; calY = c.y; calZ = c.z
+        }
+    }
+    DisposableEffect(Unit) {
+        val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val acc = sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent?) {
+                if (e == null) return
+                val alpha = 0.2f
+                val ax = (-e.values[0] - calX); val ay = (e.values[1] - calY)
+                tiltX = tiltX + alpha * (ax - tiltX)
+                tiltY = tiltY + alpha * (ay - tiltY)
+            }
+            override fun onAccuracyChanged(s: Sensor?, a: Int) {}
+        }
+        if (acc != null) sm?.registerListener(listener, acc, SensorManager.SENSOR_DELAY_GAME)
+        onDispose { sm?.unregisterListener(listener) }
+    }
+
+    val progress = remember(remainingMillis, totalMillis) {
+        1f - (remainingMillis.toFloat() / totalMillis.toFloat()).coerceIn(0f, 1f)
+    }
+    val currentProgress by rememberUpdatedState(progress)
+    var isPressed by remember { mutableStateOf(false) }
+    var tick by remember { mutableIntStateOf(0) }
+
+    data class FireParticle(
+        var x: Float,
+        var y: Float,
+        var vx: Float,
+        var vy: Float,
+        var life: Float,
+        val maxLife: Float,
+        val size: Float,
+        val isSpark: Boolean
+    )
+    val particles = remember { mutableStateListOf<FireParticle>() }
+
+    LaunchedEffect(Unit) {
+        var ft = 0L
+        while (true) {
+            withFrameNanos { n ->
+                if (ft == 0L) ft = n
+                val dt = ((n - ft) / 1_000_000_000f).coerceIn(0f, 0.03f)
+                ft = n
+
+                val prog = currentProgress
+                val intensity = (1f - prog * 0.95f).coerceAtLeast(0.05f)
+
+                // 1. Spawning Flames (only if progress < 80%)
+                val flameIntensity = if (prog < 0.8f) (1f - (prog / 0.8f)).coerceIn(0f, 1f) else 0f
+                val spawnRate = 22f * flameIntensity
+                val count = (spawnRate * dt * 60f).toInt().coerceAtLeast(if (flameIntensity > 0.1f) 1 else 0)
+
+                for (i in 0 until count) {
+                    val spread = 0.05f + (1f - flameIntensity) * 0.05f
+                    val speed = -(0.25f + flameIntensity * 0.5f + Random.nextFloat() * 0.25f)
+                    val size = 1f + Random.nextFloat() * 2.5f * flameIntensity
+                    particles.add(FireParticle(
+                        x = 0.5f + (Random.nextFloat() - 0.5f) * spread,
+                        y = 0.90f + Random.nextFloat() * 0.02f,
+                        vx = (Random.nextFloat() - 0.5f) * 0.08f * (1f + flameIntensity),
+                        vy = speed,
+                        life = 0f,
+                        maxLife = (0.8f + Random.nextFloat() * 1.5f) * (0.4f + flameIntensity * 0.6f),
+                        size = size,
+                        isSpark = false
+                    ))
+                }
+
+                // 2. Spawning Sparks (crackling embers)
+                val sparkSpawnRate = if (prog < 0.8f) 1.5f else 4f * (1f - (prog - 0.8f) / 0.2f).coerceIn(0f, 1f)
+                val sparkCount = (sparkSpawnRate * dt * 60f).toInt().coerceAtLeast(
+                    if (Random.nextFloat() < (sparkSpawnRate * dt * 60f % 1f)) 1 else 0
+                )
+
+                for (i in 0 until sparkCount) {
+                    val spread = 0.35f
+                    val speed = -(0.4f + Random.nextFloat() * 0.5f)
+                    val size = 0.6f + Random.nextFloat() * 1.2f
+                    particles.add(FireParticle(
+                        x = 0.5f + (Random.nextFloat() - 0.5f) * spread,
+                        y = 0.90f + Random.nextFloat() * 0.02f,
+                        vx = (Random.nextFloat() - 0.5f) * 0.12f,
+                        vy = speed,
+                        life = 0f,
+                        maxLife = 0.5f + Random.nextFloat() * 0.8f,
+                        size = size,
+                        isSpark = true
+                    ))
+                }
+
+                // 3. Update Particles
+                val tiltBias = tiltX * 0.005f
+                val iter = particles.iterator()
+                while (iter.hasNext()) {
+                    val p = iter.next()
+                    p.x += p.vx * dt + tiltBias * dt
+                    p.y += p.vy * dt
+                    if (p.isSpark) {
+                        p.vx += (Random.nextFloat() - 0.5f) * 0.3f * dt
+                        p.vy += 0.08f * dt
+                    } else {
+                        p.vy -= 0.2f * dt * (1f - prog * 0.8f)
+                        p.vx += (Random.nextFloat() - 0.5f) * 0.15f * dt
+                    }
+                    p.life += dt
+                    if (p.life >= p.maxLife || p.y < -0.05f || p.x < -0.05f || p.x > 1.05f) {
+                        iter.remove()
+                    }
+                }
+
+                val maxParticles = if (prog < 0.8f) {
+                    (350 * intensity).toInt().coerceAtLeast(30)
+                } else {
+                    20
+                }
+                while (particles.size > maxParticles) {
+                    particles.removeAt(0)
+                }
+                tick++
+            }
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().background(PureBlack)
+            .pointerInput(Unit) {
+                detectTapGestures(onPress = {
+                    isPressed = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    tryAwaitRelease(); isPressed = false; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                })
+            }
+    ) {
+        Box(modifier = Modifier.fillMaxSize().align(Alignment.Center)) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width; val h = size.height
+                val prog = progress
+                val intensity = (1f - prog * 0.95f).coerceAtLeast(0.05f)
+
+                // 1. Warm ambient glow base - shrinks as fire dies
+                if (prog < 0.98f) {
+                    val glowRadius = w * 0.3f * intensity
+                    val glowAlpha = (intensity * 0.15f).coerceIn(0f, 0.15f)
+                    val warmGlowColor = Color(0xFFFF5722).copy(alpha = glowAlpha)
+                    drawCircle(
+                        color = warmGlowColor,
+                        radius = glowRadius,
+                        center = Offset(w / 2f, h * 0.91f)
+                    )
+                    drawCircle(
+                        color = Color(0xFFFFB300).copy(alpha = glowAlpha * 0.6f),
+                        radius = glowRadius * 0.5f,
+                        center = Offset(w / 2f, h * 0.91f)
+                    )
+                }
+
+                // 2. Draw Campfire Logs
+                val logY = h * 0.91f
+                val logWidth = 14.dp.toPx()
+                val logLength = w * 0.35f
+
+                // Log 1: Left-down to Right-up
+                drawLine(
+                    color = Color(0xFF211510),
+                    start = Offset(w / 2f - logLength / 2f, logY + 8.dp.toPx()),
+                    end = Offset(w / 2f + logLength / 2f, logY - 8.dp.toPx()),
+                    strokeWidth = logWidth,
+                    cap = StrokeCap.Round
+                )
+                // Log 2: Left-up to Right-down
+                drawLine(
+                    color = Color(0xFF211510),
+                    start = Offset(w / 2f - logLength / 2f, logY - 8.dp.toPx()),
+                    end = Offset(w / 2f + logLength / 2f, logY + 8.dp.toPx()),
+                    strokeWidth = logWidth,
+                    cap = StrokeCap.Round
+                )
+
+                // 3. Draw Glowing Charcoal Core inside logs
+                if (prog < 0.99f) {
+                    val pulse1 = sin(tick * 0.05f) * 0.15f + 0.85f
+                    val pulse2 = cos(tick * 0.07f) * 0.15f + 0.85f
+
+                    val emberGlowAlpha = if (prog < 0.8f) {
+                        (0.3f + prog * 0.5f)
+                    } else {
+                        (0.8f * (1f - (prog - 0.8f) / 0.2f)).coerceIn(0f, 1f)
+                    }
+
+                    val glowColor1 = Color(0xFFE65100).copy(alpha = emberGlowAlpha * pulse1)
+                    val glowColor2 = Color(0xFFFF3D00).copy(alpha = emberGlowAlpha * pulse2)
+                    val coreColor = Color(0xFFFFD54F).copy(alpha = emberGlowAlpha * ((pulse1 + pulse2) / 2f))
+
+                    drawLine(
+                        color = glowColor1,
+                        start = Offset(w / 2f - logLength * 0.35f, logY + 5.dp.toPx()),
+                        end = Offset(w / 2f + logLength * 0.35f, logY - 5.dp.toPx()),
+                        strokeWidth = logWidth * 0.35f,
+                        cap = StrokeCap.Round
+                    )
+                    drawLine(
+                        color = glowColor2,
+                        start = Offset(w / 2f - logLength * 0.35f, logY - 5.dp.toPx()),
+                        end = Offset(w / 2f + logLength * 0.35f, logY + 5.dp.toPx()),
+                        strokeWidth = logWidth * 0.35f,
+                        cap = StrokeCap.Round
+                    )
+
+                    drawCircle(
+                        color = coreColor,
+                        radius = 10.dp.toPx() * (1f - prog * 0.3f),
+                        center = Offset(w / 2f, logY)
+                    )
+                }
+
+                // 4. Draw Particles (flames and sparks)
+                for (p in particles) {
+                    val lifeRatio = p.life / p.maxLife
+                    val radius = p.size.dp.toPx()
+
+                    if (p.isSpark) {
+                        val sparkAlpha = (1f - lifeRatio).coerceIn(0f, 1f)
+                        val color = Color(0xFFFFF9C4).copy(alpha = sparkAlpha)
+                        drawCircle(
+                            color = color,
+                            radius = radius,
+                            center = Offset(p.x * w, p.y * h)
+                        )
+                    } else {
+                        val alpha = (1f - lifeRatio).coerceIn(0f, 0.9f) * (if (prog < 0.8f) 1f else 0f)
+                        val sizeMultiplier = 1f + lifeRatio * 1.5f
+                        val color = when {
+                            lifeRatio < 0.15f -> Color(0xFFFFFFFF).copy(alpha = alpha)
+                            lifeRatio < 0.35f -> Color(0xFFFFEB3B).copy(alpha = alpha)
+                            lifeRatio < 0.60f -> Color(0xFFFF9800).copy(alpha = alpha * 0.9f)
+                            lifeRatio < 0.80f -> Color(0xFFE65100).copy(alpha = alpha * 0.7f)
+                            else -> Color(0xFF3E2723).copy(alpha = alpha * 0.3f)
+                        }
+                        drawCircle(
+                            color = color,
+                            radius = radius * sizeMultiplier,
+                            center = Offset(p.x * w, p.y * h)
+                        )
+                    }
+                }
+            }
+        }
+        RunningOverlay(remainingMillis, isPressed, onPause, onReset)
     }
 }
 

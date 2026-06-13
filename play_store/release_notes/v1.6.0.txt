@@ -1,0 +1,20 @@
+<ko-KR>
+v1.6.0 불멍(모닥불) 모드 추가
+
+새로 추가
+• 불멍(FIRE) 모드 — 설정 화면에서 FIRE 탭을 선택하세요. 타이머 시작 시 모닥불이 세차게 타오르며, 시간이 지날수록 점차 사그라들어 마지막엔 붉게 숨 쉬는 숯과 공중으로 흩날리는 불씨(Embers)만 남는 아름다운 모션을 구현했습니다
+
+개선
+• 가속도계 센서를 통해 폰의 기울기에 따라 불꽃과 불씨가 부드럽게 한쪽으로 쏠리는 역동적인 틸트 반응성을 추가했습니다
+• 빌드 스크립트 컴파일 환경을 Gradle 9.5.1로 업데이트하여 안정성을 강화했습니다
+</ko-KR>
+<en-US>
+v1.6.0 Added Campfire-to-Embers Mode
+
+New
+• Campfire Mode — Select FIRE to watch a realistic bonfire that blazes bright at the start and gradually dies down into breathing red-hot charcoal logs and floating embers as time runs out
+
+Improved
+• Implemented dynamic tilting: flames and crackling sparks lean realistically in response to device rotation
+• Upgraded the build environment to Gradle 9.5.1 for enhanced compilation stability
+</en-US>
