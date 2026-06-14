@@ -14,7 +14,8 @@ val Context.timerDataStore: DataStore<Preferences> by preferencesDataStore(name 
 
 enum class DisplayMode { 
     SAND, LED, WATER, 
-    NEBULA, MOSS, INK, CRYSTAL, WAX, FLIP, FIRE;
+    NEBULA, MOSS, INK, CRYSTAL, WAX, FLIP, FIRE,
+    MAGNETIC, AURORA, RAIN, BLACKHOLE, ELECTRIC;
     companion object {
         fun parse(s: String?): DisplayMode = when (s) {
             "LED" -> LED
@@ -26,6 +27,11 @@ enum class DisplayMode {
             "WAX" -> WAX
             "FLIP" -> FLIP
             "FIRE" -> FIRE
+            "MAGNETIC" -> MAGNETIC
+            "AURORA" -> AURORA
+            "RAIN" -> RAIN
+            "BLACKHOLE" -> BLACKHOLE
+            "ELECTRIC" -> ELECTRIC
             else -> SAND
         }
     }

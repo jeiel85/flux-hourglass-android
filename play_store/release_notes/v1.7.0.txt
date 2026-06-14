@@ -1,0 +1,20 @@
+<ko-KR>
+v1.7.0 5가지 새로운 프리미엄 물리 모드 추가
+
+새로 추가
+• MAGNETIC — 터치로 자석을 이끌며 자성유체 가시 모양 변화 감상
+• AURORA — 흘러내리는 오로라 빛무리가 중력에 쌓이고 터치 시 회오리
+• RAIN — 유리창 빗방울이 기울기로 미끄러지고 터치로 슬라이드 방해
+• BLACKHOLE — 점차 강해지는 블랙홀 중심에 빠져드는 은하 입자 궤도
+• ELECTRIC — 플라스마 아크가 중력 반대로 뜨며 터치 지점으로 집중
+</ko-KR>
+<en-US>
+v1.7.0 Added 5 New Premium Physics Modes
+
+New
+• MAGNETIC — Ferrofluid spikes react to tilt and touch dragging.
+• AURORA — Swirling wind currents settle into a glowing bottom layer.
+• RAIN — Slides with tilt, merges, and wipes away on touch.
+• BLACKHOLE — Orbiting stars spiral into a growing singularity.
+• ELECTRIC — Plasma arcs rise with anti-gravity and focus on touch.
+</en-US>

@@ -7,6 +7,16 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-06-14
+
+### Added
+- 5 Premium interactive accelerometer-driven simulation modes:
+  - **Magnetic Ferrofluid Mode (MAGNETIC)** featuring spiky fluid peaks, time-based sine wave micro-vibrations, and draggable virtual magnet attraction center.
+  - **Aurora Flow Field Mode (AURORA)** featuring glowing color sweeps in a mathematical flow field, gravity-based sediment settling, and touch vortex swirl force.
+  - **Rain & Ripples Mode (RAIN)** featuring sliding rain condensation drops on glass, collision raindrop merging, and radial wipe deflection on touch.
+  - **Accretion Black Hole Mode (BLACKHOLE)** featuring orbiting star particles spiraling into a central gravitational singularity that grows stronger over time.
+  - **Tesla Plasma Globe Mode (ELECTRIC)** featuring electric discharge arcs calculated by midpoint displacement recursion, convective anti-gravity rising, and touch-focused arcs with haptic micro-pulses.
+
 ## [1.6.0] — 2026-06-13
 
 ### Added
