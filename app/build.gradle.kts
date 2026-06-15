@@ -14,8 +14,8 @@ android {
     applicationId = "com.flux.hourglass"
     minSdk = 24
     targetSdk = 36
-    versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull() ?: 10
-    versionName = (findProperty("VERSION_NAME") as String?) ?: "1.9.0"
+    versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull() ?: 11
+    versionName = (findProperty("VERSION_NAME") as String?) ?: "1.9.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

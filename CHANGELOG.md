@@ -7,6 +7,16 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.9.1] — 2026-06-15
+
+### Fixed
+- **Setup Screen controls no longer disappear.** The time picker (`HR/MIN/SEC`), Quick Presets, and `START` button could be pushed off the bottom edge — and made unreachable — whenever the content was taller than the viewport (short/split screens, large font scale, tall insets). The content now lives in a min-height vertical scroll container: identical SpaceBetween layout when it fits, scrollable when it doesn't, so every control stays reachable.
+
+## [1.9.0] — 2026-06-15
+
+### Changed
+- **Object selector → single swipe-through row.** Replaced the fixed three-row (3×5) object grid on the Setup Screen with one horizontally scrollable `LazyRow` filmstrip. Fixed one-row footprint regardless of object count, auto-centers the selected object, and edge-fade gradients hint that the strip continues off-screen — reclaiming the vertical space the time picker and `START` button need.
+
 ## [1.8.0] — 2026-06-15
 
 ### Added

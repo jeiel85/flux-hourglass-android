@@ -35,6 +35,8 @@
 
 | Version | Date | Notes |
 |---------|------|-------|
+| [1.9.1](docs/releases/v1.9.1.md) | 2026-06-15 | Fix: time picker & START button could disappear on the setup screen |
+| [1.9.0](docs/releases/v1.9.0.md) | 2026-06-15 | Swipeable single-row object selector |
 | [1.8.0](docs/releases/v1.8.0.md) | 2026-06-15 | Sandbox Settings, Procedural Soundscapes, Interactive obstacle drawing |
 | [1.7.0](docs/releases/v1.7.0.md) | 2026-06-14 | 5 premium modes: Magnetic, Aurora, Rain, Black Hole, Electric |
 | [1.6.0](docs/releases/v1.6.0.md) | 2026-06-13 | Premium Fire Mode + interactive tilt physics |

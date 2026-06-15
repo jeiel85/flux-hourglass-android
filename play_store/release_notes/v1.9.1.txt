@@ -1,0 +1,6 @@
+<ko-KR>
+- 일부 화면에서 시간 선택과 시작 버튼이 보이지 않던 문제를 해결했습니다. 이제 어떤 화면에서도 시간 설정과 시작 버튼이 항상 표시되고, 공간이 부족하면 스크롤로 닿을 수 있어요.
+</ko-KR>
+<en-US>
+- Fixed an issue where the time picker and Start button could disappear on the setup screen. They now stay visible on any screen, and you can scroll to reach them when space is tight.
+</en-US>
