@@ -103,6 +103,10 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.random.Random
 
+val LocalSoundEnabled = androidx.compose.runtime.staticCompositionLocalOf { false }
+val LocalOnSoundToggle = androidx.compose.runtime.staticCompositionLocalOf<() -> Unit> { {} }
+val LocalSandboxSettings = androidx.compose.runtime.staticCompositionLocalOf { SandboxSettings() }
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -159,9 +163,40 @@ fun HourglassApp(
     var showCalibration by remember { mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
-    Box(
-        modifier = Modifier.fillMaxSize()
+    val sandboxSettings by viewModel.sandboxSettings.collectAsState()
+    var showSandboxSettings by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        TimerPreferences.observeSandbox(context).collect { settings ->
+            viewModel.updateSandboxSettings(settings)
+        }
+    }
+
+    val audioPlayer = remember { ProceduralAudioPlayer() }
+    var soundEnabled by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state, soundEnabled, modeVal) {
+        if (state is TimerState.Running && soundEnabled) {
+            audioPlayer.start(modeVal)
+        } else {
+            audioPlayer.stop()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            audioPlayer.stop()
+        }
+    }
+
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalSoundEnabled provides soundEnabled,
+        LocalOnSoundToggle provides { soundEnabled = !soundEnabled },
+        LocalSandboxSettings provides sandboxSettings
     ) {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
         when (val current = state) {
             is TimerState.Setup -> {
                 SetupScreen(
@@ -186,7 +221,8 @@ fun HourglassApp(
                         }
                         viewModel.startTimer(hoursVal, minutesVal, secondsVal)
                     },
-                    onCalibrate = { showCalibration = true }
+                    onCalibrate = { showCalibration = true },
+                    onShowSandbox = { showSandboxSettings = true }
                 )
             }
             is TimerState.Running -> {
@@ -219,6 +255,20 @@ fun HourglassApp(
                 onCalibrated = { showCalibration = false }
             )
         }
+
+        if (showSandboxSettings) {
+            SandboxSettingsDialog(
+                settings = sandboxSettings,
+                onSettingsChange = { settings ->
+                    scope.launch {
+                        TimerPreferences.saveSandbox(context, settings)
+                    }
+                    viewModel.updateSandboxSettings(settings)
+                },
+                onDismiss = { showSandboxSettings = false }
+            )
+        }
+    }
     }
 }
 
@@ -246,7 +296,8 @@ fun SetupScreen(
     onModeChange: (DisplayMode) -> Unit = {},
     onPresetSelected: (Int, Int, Int) -> Unit = { _, _, _ -> },
     onStart: () -> Unit,
-    onCalibrate: () -> Unit = {}
+    onCalibrate: () -> Unit = {},
+    onShowSandbox: () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -260,12 +311,35 @@ fun SetupScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // App Title and CALI button
+        // App Title, CALI button, and SETT button
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onShowSandbox()
+                            }
+                        )
+                    }
+                    .testTag("sandbox_button")
+                    .padding(top = 24.dp, start = 8.dp)
+            ) {
+                Text(
+                    text = "S E T T",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Light,
+                    color = PureWhite.copy(alpha = 0.55f),
+                    letterSpacing = 2.sp,
+                    modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp)
+                )
+            }
+
             Text(
                 text = "H O U R G L A S S",
                 fontSize = 12.sp,
@@ -277,6 +351,7 @@ fun SetupScreen(
                     .weight(1f)
                     .padding(top = 24.dp)
             )
+
             Box(
                 modifier = Modifier
                     .pointerInput(Unit) {
@@ -709,6 +784,8 @@ private fun RunningOverlay(
     onReset: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val soundEnabled = LocalSoundEnabled.current
+    val onSoundToggle = LocalOnSoundToggle.current
 
     val minutesLeft = (remainingMillis / 60000) % 60
     val hoursLeft = (remainingMillis / 3600000)
@@ -763,6 +840,11 @@ private fun RunningOverlay(
             label = "P A U S E",
             tag = "pause_button",
             onTap = onPause
+        )
+        ControlPill(
+            label = if (soundEnabled) "S O U N D" else "M U T E",
+            tag = "sound_button",
+            onTap = onSoundToggle
         )
         ControlPill(
             label = "R E S E T",
@@ -823,6 +905,8 @@ fun SandRunningScreen(
 
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val sandboxSettings = LocalSandboxSettings.current
+    val drawnLines = remember { mutableStateListOf<DrawnLineSegment>() }
 
     // Raw device-frame gravity (m/s²), low-pass filtered.
     //   tiltX > 0 → gravity pulls toward the device's right edge
@@ -893,15 +977,44 @@ fun SandRunningScreen(
             .fillMaxSize()
             .background(PureBlack)
             .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
+                val touchSlop = viewConfiguration.touchSlop
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown()
                         isScreenPressed = true
+                        var prevPos = down.position
+                        var totalDragDistance = 0f
+                        var isDragging = false
+                        val pointerId = down.id
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        tryAwaitRelease()
-                        isScreenPressed = false
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == pointerId }
+                            if (change == null || !change.pressed) {
+                                isScreenPressed = false
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                break
+                            } else {
+                                val currPos = change.position
+                                val dist = (currPos - prevPos).getDistance()
+                                if (dist > 0.1f) {
+                                    totalDragDistance += dist
+                                    if (totalDragDistance > touchSlop) {
+                                        if (isScreenPressed) {
+                                            isScreenPressed = false
+                                        }
+                                        isDragging = true
+                                    }
+                                    if (isDragging && dist > 2f) {
+                                        drawnLines.add(DrawnLineSegment(start = prevPos, end = currPos))
+                                        prevPos = currPos
+                                    }
+                                }
+                            }
+                        }
                     }
-                )
+                }
             }
     ) {
         val currentProgressFraction by rememberUpdatedState(progressFraction)
@@ -920,12 +1033,22 @@ fun SandRunningScreen(
                     val dt = ((frameTimeNanos - frameTime) / 1_000_000_000f).coerceIn(0f, 0.03f)
                     frameTime = frameTimeNanos
 
+                    // Update line alphas
+                    for (i in drawnLines.indices) {
+                        val line = drawnLines[i]
+                        val nextAlpha = line.alpha - dt * 0.16f
+                        drawnLines[i] = line.copy(alpha = nextAlpha)
+                    }
+                    drawnLines.removeAll { it.alpha <= 0f }
+
                     physics.update(
                         remainingFraction = currentProgressFraction,
                         gravityX = currentGravityX,
                         gravityY = currentGravityY,
                         dt = dt,
-                        totalMillis = totalMillis
+                        totalMillis = totalMillis,
+                        sandboxSettings = sandboxSettings,
+                        lines = drawnLines
                     )
                     tick++
                 }
@@ -948,8 +1071,19 @@ fun SandRunningScreen(
 
                 physics.initDimensions(width, height)
 
-                val particleRadius = 0.85.dp.toPx()
-                val grainRadius = 0.6.dp.toPx()
+                val particleRadius = 0.85.dp.toPx() * sandboxSettings.particleSize
+                val grainRadius = 0.6.dp.toPx() * sandboxSettings.particleSize
+
+                // Draw active drawn obstacles
+                for (line in drawnLines) {
+                    drawLine(
+                        color = PureWhite.copy(alpha = line.alpha * 0.65f),
+                        start = line.start,
+                        end = line.end,
+                        strokeWidth = 3.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
 
                 // 1. Active falling grains
                 for (i in 0 until physics.maxParticles) {
@@ -1168,6 +1302,8 @@ fun WaterRunningScreen(
 
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val sandboxSettings = LocalSandboxSettings.current
+    val drawnLines = remember { mutableStateListOf<DrawnLineSegment>() }
 
     // Raw device-frame gravity (m/s²), low-pass filtered.
     var tiltX by remember { mutableFloatStateOf(0f) }
@@ -1256,11 +1392,19 @@ fun WaterRunningScreen(
                 val dt = ((frameTimeNanos - frameTime) / 1_000_000_000f).coerceIn(0f, 0.03f)
                 frameTime = frameTimeNanos
 
+                // Update line alphas
+                for (i in drawnLines.indices) {
+                    val line = drawnLines[i]
+                    val nextAlpha = line.alpha - dt * 0.16f
+                    drawnLines[i] = line.copy(alpha = nextAlpha)
+                }
+                drawnLines.removeAll { it.alpha <= 0f }
+
                 // 1. Update wave phase
                 wavePhase = (wavePhase + 3f * dt) % (2f * Math.PI.toFloat())
 
                 // 2. Spring-damper for sloshing
-                val targetSlosh = (-tiltX / 9.81f).coerceIn(-0.4f, 0.4f)
+                val targetSlosh = (-tiltX * sandboxSettings.gravityScale / 9.81f).coerceIn(-0.4f, 0.4f)
                 val springK = 35f
                 val damping = 6f
                 val force = (targetSlosh - sloshAngle) * springK
@@ -1314,15 +1458,44 @@ fun WaterRunningScreen(
             .fillMaxSize()
             .background(PureBlack)
             .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
+                val touchSlop = viewConfiguration.touchSlop
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown()
                         isScreenPressed = true
+                        var prevPos = down.position
+                        var totalDragDistance = 0f
+                        var isDragging = false
+                        val pointerId = down.id
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        tryAwaitRelease()
-                        isScreenPressed = false
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == pointerId }
+                            if (change == null || !change.pressed) {
+                                isScreenPressed = false
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                break
+                            } else {
+                                val currPos = change.position
+                                val dist = (currPos - prevPos).getDistance()
+                                if (dist > 0.1f) {
+                                    totalDragDistance += dist
+                                    if (totalDragDistance > touchSlop) {
+                                        if (isScreenPressed) {
+                                            isScreenPressed = false
+                                        }
+                                        isDragging = true
+                                    }
+                                    if (isDragging && dist > 2f) {
+                                        drawnLines.add(DrawnLineSegment(start = prevPos, end = currPos))
+                                        prevPos = currPos
+                                    }
+                                }
+                            }
+                        }
                     }
-                )
+                }
             }
     ) {
         Box(
@@ -1337,6 +1510,17 @@ fun WaterRunningScreen(
                 val h = size.height
 
                 val pxScale = density
+
+                // Draw active drawn obstacles
+                for (line in drawnLines) {
+                    drawLine(
+                        color = PureWhite.copy(alpha = line.alpha * 0.65f),
+                        start = line.start,
+                        end = line.end,
+                        strokeWidth = 3.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
 
                 // Let's define the bottom water level
                 // Bottom pool level increases as progress decreases (fills)
@@ -1358,7 +1542,7 @@ fun WaterRunningScreen(
                             val currY = streamTopY + i * dy
                             val progress = (currY - streamTopY) / (streamBottomY - streamTopY).coerceAtLeast(1f)
                             // Parabolic displacement due to gravity: x_offset = gravity * progress^2
-                            val gravityOffset = (tiltX * 36f * pxScale) * (progress * progress)
+                            val gravityOffset = (tiltX * sandboxSettings.gravityScale * 36f * pxScale) * (progress * progress)
                             val xOffset = sin(currY * 0.06f - wavePhase * 4f) * 3.dp.toPx() + gravityOffset
                             lineTo(centerX + xOffset, currY)
                         }
@@ -1465,26 +1649,43 @@ fun WaterRunningScreen(
                     val hitY = targetY + sloshAtCenter
 
                     // The hit X position is w/2f + gravityOffset
-                    val hitX = w / 2f + (tiltX * 36f * pxScale)
+                    val hitX = w / 2f + (tiltX * sandboxSettings.gravityScale * 36f * pxScale)
 
                     val iterator = splashes.iterator()
                     while (iterator.hasNext()) {
                         val splash = iterator.next()
                         
-                        splash.vy += 240f * (1f / 60f) * pxScale
+                        splash.vy += 240f * sandboxSettings.gravityScale * (1f / 60f) * pxScale
                         splash.x += splash.vx * (1f / 60f) / w
                         splash.y = (splash.y * h + splash.vy * (1f / 60f) * pxScale) / h
                         splash.alpha -= 1.2f * (1f / 60f)
 
-                        val posX = hitX + (splash.x - 0.5f) * w
-                        val posY = splash.y * h
+                        var posX = hitX + (splash.x - 0.5f) * w
+                        var posY = splash.y * h
+
+                        if (drawnLines.isNotEmpty()) {
+                            val updated = resolveLineCollisions(
+                                px = posX,
+                                py = posY,
+                                pvx = splash.vx,
+                                pvy = splash.vy,
+                                radius = 2.5f * sandboxSettings.particleSize,
+                                lines = drawnLines
+                            )
+                            posX = updated[0]
+                            posY = updated[1]
+                            splash.vx = updated[2]
+                            splash.vy = updated[3]
+                            splash.x = 0.5f + (posX - hitX) / w
+                        }
+                        splash.y = posY / h
 
                         if (posY >= bottomY || splash.alpha <= 0f) {
                             iterator.remove()
                         } else {
                             drawCircle(
                                 color = Color(0xFF88F2FF).copy(alpha = splash.alpha),
-                                radius = 1.5.dp.toPx(),
+                                radius = 1.5.dp.toPx() * sandboxSettings.particleSize,
                                 center = Offset(posX, posY)
                             )
                         }
@@ -3073,15 +3274,23 @@ class ParticleSystem(val maxParticles: Int = 4800) {
         spawnAccumulator = 0f
     }
 
-    fun update(remainingFraction: Float, gravityX: Float, gravityY: Float, dt: Float, totalMillis: Long) {
+    fun update(
+        remainingFraction: Float,
+        gravityX: Float,
+        gravityY: Float,
+        dt: Float,
+        totalMillis: Long,
+        sandboxSettings: SandboxSettings = SandboxSettings(),
+        lines: List<DrawnLineSegment> = emptyList()
+    ) {
         if (w == 0f || h == 0f) return
 
         val safeGravityX = if (gravityX.isNaN()) 0f else gravityX
         val safeGravityY = if (gravityY.isNaN()) 9.81f else gravityY
 
         val gMult = 200f
-        val activeGravityY = safeGravityY * gMult
-        val activeGravityX = safeGravityX * gMult
+        val activeGravityY = safeGravityY * gMult * sandboxSettings.gravityScale
+        val activeGravityX = safeGravityX * gMult * sandboxSettings.gravityScale
 
         // Sized so the column-averaged pile reaches the full screen height
         // exactly when remainingFraction → 0. baseRate ≈ 640 grains/sec.
@@ -3092,7 +3301,7 @@ class ParticleSystem(val maxParticles: Int = 4800) {
         // slight bias toward the gravity direction so the stream visibly leans.
         if (remainingFraction > 0f) {
             val baseRate = 640f
-            val spawnRate = baseRate * (1.5f - remainingFraction)
+            val spawnRate = baseRate * (1.5f - remainingFraction) * sandboxSettings.particleCount
             spawnAccumulator += spawnRate * dt
 
             val toSpawn = spawnAccumulator.toInt()
@@ -3129,6 +3338,23 @@ class ParticleSystem(val maxParticles: Int = 4800) {
 
             px[i] += pvx[i] * dt
             py[i] += pvy[i] * dt
+
+            // Collision with drawn barriers
+            if (lines.isNotEmpty()) {
+                val pRadius = 2.5f * sandboxSettings.particleSize
+                val updated = resolveLineCollisions(
+                    px = px[i],
+                    py = py[i],
+                    pvx = pvx[i],
+                    pvy = pvy[i],
+                    radius = pRadius,
+                    lines = lines
+                )
+                px[i] = updated[0]
+                py[i] = updated[1]
+                pvx[i] = updated[2]
+                pvy[i] = updated[3]
+            }
 
             // Particles that fly off the side just despawn
             if (px[i] < -8f || px[i] > w + 8f) {
@@ -3641,6 +3867,8 @@ fun RainRunningScreen(
     KeepScreenOn()
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val sandboxSettings = LocalSandboxSettings.current
+    val drawnLines = remember { mutableStateListOf<DrawnLineSegment>() }
 
     var tiltX by remember { mutableFloatStateOf(0f) }
     var tiltY by remember { mutableFloatStateOf(9.81f) }
@@ -3682,6 +3910,8 @@ fun RainRunningScreen(
     var touchX by remember { mutableFloatStateOf(0f) }
     var touchY by remember { mutableFloatStateOf(0f) }
     var isTouching by remember { mutableStateOf(false) }
+    var widthPx by remember { mutableFloatStateOf(0f) }
+    var heightPx by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(Unit) {
         var ft = 0L
@@ -3691,29 +3921,57 @@ fun RainRunningScreen(
                 val dt = ((n - ft) / 1_000_000_000f).coerceIn(0f, 0.03f)
                 ft = n
 
+                // Update line alphas
+                for (i in drawnLines.indices) {
+                    val line = drawnLines[i]
+                    val nextAlpha = line.alpha - dt * 0.16f
+                    drawnLines[i] = line.copy(alpha = nextAlpha)
+                }
+                drawnLines.removeAll { it.alpha <= 0f }
+
                 // Spawn rain condensation
-                val spawnRate = 0.28f * (1f - progress).coerceAtLeast(0.08f)
+                val spawnRate = 0.28f * (1f - progress).coerceAtLeast(0.08f) * sandboxSettings.particleCount
                 if (drops.size < 60 && Random.nextFloat() < spawnRate) {
                     drops.add(RainDrop(
                         x = Random.nextFloat(),
                         y = -0.02f,
-                        size = 1.8f + Random.nextFloat() * 2.5f,
+                        size = (1.8f + Random.nextFloat() * 2.5f) * sandboxSettings.particleSize,
                         vy = 30f + Random.nextFloat() * 50f,
                         active = true
                     ))
                 }
 
                 // Update drops
-                val gravityY = tiltY * 15f + 40f
+                val gravityY = (tiltY * 15f + 40f) * sandboxSettings.gravityScale
+                val slideX = tiltX * 0.12f * sandboxSettings.gravityScale
                 val iter = drops.iterator()
                 while (iter.hasNext()) {
                     val d = iter.next()
                     d.vy += gravityY * dt
                     
                     // Rain slides at an angle matching the gravity vector
-                    val slideX = tiltX * 0.12f
                     d.x += slideX * dt * (d.vy * 0.02f)
                     d.y += d.vy * dt / 350f
+
+                    // Collision with drawn obstacles
+                    if (drawnLines.isNotEmpty() && widthPx > 0f && heightPx > 0f) {
+                        val px = d.x * widthPx
+                        val py = d.y * heightPx
+                        val pvyReal = (d.vy / 350f) * heightPx
+                        val pvxReal = (slideX * (d.vy * 0.02f)) * widthPx
+                        
+                        val updated = resolveLineCollisions(
+                            px = px,
+                            py = py,
+                            pvx = pvxReal,
+                            pvy = pvyReal,
+                            radius = d.size * 1.5f,
+                            lines = drawnLines
+                        )
+                        d.x = (updated[0] / widthPx).coerceIn(0f, 1f)
+                        d.y = (updated[1] / heightPx)
+                        d.vy = (updated[3] / heightPx) * 350f
+                    }
 
                     // Touch wiper/deflection
                     if (isTouching) {
@@ -3784,6 +4042,7 @@ fun RainRunningScreen(
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(PureBlack)
             .pointerInput(Unit) {
+                val touchSlop = viewConfiguration.touchSlop
                 awaitPointerEventScope {
                     while (true) {
                         val down = awaitFirstDown()
@@ -3791,26 +4050,41 @@ fun RainRunningScreen(
                         isTouching = true
                         touchX = down.position.x / size.width
                         touchY = down.position.y / size.height
+                        var prevPos = down.position
+                        var totalDragDistance = 0f
+                        var isDragging = false
+                        val pointerId = down.id
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        
-                        var dragActive = true
-                        while (dragActive) {
+
+                        while (true) {
                             val event = awaitPointerEvent()
-                            val anyDown = event.changes.any { it.pressed }
-                            if (!anyDown) {
-                                dragActive = false
+                            val change = event.changes.firstOrNull { it.id == pointerId }
+                            if (change == null || !change.pressed) {
+                                isPressed = false
+                                isTouching = false
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                break
                             } else {
-                                val firstActive = event.changes.firstOrNull { it.pressed }
-                                if (firstActive != null) {
-                                    touchX = firstActive.position.x / size.width
-                                    touchY = firstActive.position.y / size.height
+                                val currPos = change.position
+                                touchX = currPos.x / size.width
+                                touchY = currPos.y / size.height
+
+                                val dist = (currPos - prevPos).getDistance()
+                                if (dist > 0.1f) {
+                                    totalDragDistance += dist
+                                    if (totalDragDistance > touchSlop) {
+                                        if (isPressed) {
+                                            isPressed = false
+                                        }
+                                        isDragging = true
+                                    }
+                                    if (isDragging && dist > 2f) {
+                                        drawnLines.add(DrawnLineSegment(start = prevPos, end = currPos))
+                                        prevPos = currPos
+                                    }
                                 }
                             }
                         }
-                        
-                        isPressed = false
-                        isTouching = false
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
                 }
             }
@@ -3818,6 +4092,19 @@ fun RainRunningScreen(
         Box(modifier = Modifier.fillMaxSize().align(Alignment.Center)) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val w = size.width; val h = size.height
+                widthPx = w
+                heightPx = h
+
+                // Draw active drawn obstacles
+                for (line in drawnLines) {
+                    drawLine(
+                        color = PureWhite.copy(alpha = line.alpha * 0.65f),
+                        start = line.start,
+                        end = line.end,
+                        strokeWidth = 3.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
 
                 // Draw falling and sliding rain drops (elongated based on speed/tilt)
                 for (d in drops) {
@@ -4309,6 +4596,201 @@ fun ElectricRunningScreen(
             }
         }
         RunningOverlay(remainingMillis, isPressed, onPause, onReset)
+    }
+}
+
+// ============================================================
+// SANDBOX SUPPORT & COLLISION SOLVER
+// ============================================================
+
+data class DrawnLineSegment(
+    val start: Offset,
+    val end: Offset,
+    var alpha: Float = 1.0f
+)
+
+fun resolveLineCollisions(
+    px: Float, py: Float,
+    pvx: Float, pvy: Float,
+    radius: Float,
+    lines: List<DrawnLineSegment>,
+    elasticity: Float = 0.35f
+): FloatArray {
+    var npx = px
+    var npy = py
+    var npvx = pvx
+    var npvy = pvy
+
+    for (line in lines) {
+        val x1 = line.start.x
+        val y1 = line.start.y
+        val x2 = line.end.x
+        val y2 = line.end.y
+
+        val abX = x2 - x1
+        val abY = y2 - y1
+        val apX = npx - x1
+        val apY = npy - y1
+        val abLenSq = abX * abX + abY * abY
+        if (abLenSq > 0.0001f) {
+            val t = (apX * abX + apY * abY) / abLenSq
+            val clampedT = t.coerceIn(0f, 1f)
+            val closestX = x1 + clampedT * abX
+            val closestY = y1 + clampedT * abY
+            val dx = npx - closestX
+            val dy = npy - closestY
+            val distSq = dx * dx + dy * dy
+            if (distSq < radius * radius && distSq > 0.0001f) {
+                val dist = sqrt(distSq)
+                val nx = dx / dist
+                val ny = dy / dist
+
+                npx = closestX + nx * radius
+                npy = closestY + ny * radius
+
+                val dot = npvx * nx + npvy * ny
+                if (dot < 0f) {
+                    npvx = (npvx - 2f * dot * nx) * elasticity
+                    npvy = (npvy - 2f * dot * ny) * elasticity
+                }
+            }
+        }
+    }
+    return floatArrayOf(npx, npy, npvx, npvy)
+}
+
+@Composable
+fun SandboxSettingsDialog(
+    settings: SandboxSettings,
+    onSettingsChange: (SandboxSettings) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack.copy(alpha = 0.85f))
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { onDismiss() })
+            },
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = PureBlack,
+                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                )
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {})
+                }
+                .navigationBarsPadding()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "S A N D B O X   P H Y S I C S",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Light,
+                color = PureWhite.copy(alpha = 0.85f),
+                letterSpacing = 2.sp,
+                modifier = Modifier.padding(bottom = 24.dp)
+            )
+
+            SandboxSliderItem(
+                label = "G R A V I T Y   S E N S I T I V I T Y",
+                value = settings.gravityScale,
+                valueRange = 0.3f..2.5f,
+                onValueChange = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onSettingsChange(settings.copy(gravityScale = it))
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SandboxSliderItem(
+                label = "P A R T I C L E   S I Z E",
+                value = settings.particleSize,
+                valueRange = 0.6f..2.2f,
+                onValueChange = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onSettingsChange(settings.copy(particleSize = it))
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SandboxSliderItem(
+                label = "P A R T I C L E   D E N S I T Y",
+                value = settings.particleCount,
+                valueRange = 0.5f..2.0f,
+                onValueChange = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onSettingsChange(settings.copy(particleCount = it))
+                }
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text(
+                text = "D O N E",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Light,
+                color = PureWhite,
+                letterSpacing = 3.sp,
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onDismiss()
+                        })
+                    }
+                    .padding(vertical = 8.dp, horizontal = 24.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun SandboxSliderItem(
+    label: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = label,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Light,
+                color = PureWhite.copy(alpha = 0.55f),
+                letterSpacing = 1.sp
+            )
+            Text(
+                text = String.format("%.1fx", value),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Light,
+                color = PureWhite
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        androidx.compose.material3.Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            colors = androidx.compose.material3.SliderDefaults.colors(
+                thumbColor = PureWhite,
+                activeTrackColor = PureWhite.copy(alpha = 0.8f),
+                inactiveTrackColor = PureWhite.copy(alpha = 0.2f)
+            )
+        )
     }
 }
 

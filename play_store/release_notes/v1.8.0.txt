@@ -1,0 +1,10 @@
+<ko-KR>
+- 샌드박스 설정: 중력 민감도, 모래 입자 크기 및 밀도 조절 기능 추가 (설정 화면의 S E T T 버튼)
+- 실시간 음향 합성: 빗소리, 모닥불 타는 소리, 물소리를 메모리 공간 차지 없이 알고리즘으로 실시간 합성 재생 (소리 버튼 토글)
+- 드로잉 장애물: 화면에 직접 선을 그려 모래, 물방울, 빗방울이 튕겨나가는 물리 차단막 배치 기능 추가 (드래그하여 그리기)
+</ko-KR>
+<en-US>
+- Sandbox Settings: Adjust gravity, particle size, and density (S E T T button).
+- Procedural Soundscapes: Zero-size synthesized rain rumble, fire crackles, and wave rumbles (SOUND button toggle).
+- Interactive Barriers: Drag to draw fading lines that deflect sand, splashes, and rain using elastic 2D collision physics.
+</en-US>

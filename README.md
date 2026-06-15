@@ -23,17 +23,24 @@
 - **Particle-physics hourglass.** Each grain is an independent particle that falls, collides, and is absorbed into a sand pile that grows toward 50% of the screen as the timer ends.
 - **Tilt-aware.** The accelerometer feeds a live gravity vector into the slumping pass — tip the phone and the pile pours toward the lower edge.
 - **Touch-to-reveal time.** Press anywhere on the running screen to fade in exact remaining `HH : MM : SS`; release to return to pure sand.
-- **Quick presets.** `1m / 3m / 5m / 10m / 25m / 1h` chips sit under the title and seed the H R / M I N / S E C pickers in one tap.
-- **Pause / Resume.** Faint `P A U S E` opposite `R E S E T`; the paused screen shows remaining time + percent left with a centered `R E S U M E`.
-- **Keep-screen-on while running.** Sets `FLAG_KEEP_SCREEN_ON` only during the Running state, cleared the instant the timer pauses, finishes, or resets.
-- **Remembers your last duration.** A `Preferences` DataStore persists the last started H R / M I N / S E C so pickers are pre-seeded on every launch.
-- **Soft completion chime.** A three-note `ToneGenerator` chime on the notification stream plays alongside the vibration pulse — respects silent / DnD.
-- **Zero side channels.** No network, no analytics, no ads, no permissions beyond `VIBRATE`.
+- **Quick presets.** `1m / 3m / 5m / 10m / 25m / 1h` chips seed the pickers in one tap.
+- **Pause / Resume.** Faint controls opposite reset; pause shows exact remaining time + percent.
+- **Remembers last duration.** A DataStore persists the last duration so pickers are pre-seeded.
+- **Sandbox Settings Panel.** Real-time sliders to customize Gravity Sensitivity ($0.3\times$ to $2.5\times$), Particle Size ($0.6\times$ to $2.2\times$), and Particle Density ($0.5\times$ to $2.0\times$) in real-time.
+- **Procedural Soundscapes.** Math-modeled real-time PCM audio synthesis for rain, fire, and water modes, utilizing zero-byte resource files.
+- **Interactive Obstacle Drawing.** Drag-to-draw temporary fading barrier lines that deflect sand particles, water splashes, and rain drops dynamically using elastic 2D collision physics.
+- **15+ premium visualizer modes.** Includes Sand, LED Grid, Water (sloshing waves, bubbles, splashes), Fire (logs, decay, sparks), Magnetic (ferrofluid spikes), Aurora (glowing flow fields), Rain (sliding window drops, wiper), Black Hole (star accretion disk), and Electric (recursive midpoint displacement plasma globe).
 
 ## Version history
 
 | Version | Date | Notes |
 |---------|------|-------|
+| [1.8.0](docs/releases/v1.8.0.md) | 2026-06-15 | Sandbox Settings, Procedural Soundscapes, Interactive obstacle drawing |
+| [1.7.0](docs/releases/v1.7.0.md) | 2026-06-14 | 5 premium modes: Magnetic, Aurora, Rain, Black Hole, Electric |
+| [1.6.0](docs/releases/v1.6.0.md) | 2026-06-13 | Premium Fire Mode + interactive tilt physics |
+| [1.5.0](docs/releases/v1.5.0.md) | 2026-05-28 | Premium Water Mode + spring-damper sloshing, Immersive Mode |
+| [1.4.0](docs/releases/v1.4.0.md) | 2026-05-28 | SNAPPING gravity screen rotation & pile rescaling |
+| [1.3.0](docs/releases/v1.3.0.md) | 2026-05-28 | Retro LED Grid Mode & gyro-based pile slumping |
 | [1.2.0](docs/releases/v1.2.0.md) | 2026-05-27 | Completion chime + persisted last duration |
 | [1.1.0](docs/releases/v1.1.0.md) | 2026-05-27 | Quick presets, pause/resume, keep-screen-on |
 | [1.0.0](docs/releases/v1.0.0.md) | 2026-05-27 | Initial release — particle hourglass core |
@@ -115,6 +122,10 @@ All rights reserved unless an explicit license is added.
 - **타이머 동안 화면 켜짐** — 실행 상태에서만 `FLAG_KEEP_SCREEN_ON`을 걸고, 일시정지·완료·리셋 즉시 해제.
 - **마지막 시간 기억** — 종료 후 다시 켜도 직전에 시작했던 시·분·초가 그대로 채워져 있습니다.
 - **부드러운 완료음** — 알림 스트림에 세 음짜리 톤을 짧게 울려 진동과 함께 종료를 알립니다. 무음/방해금지 설정을 그대로 따릅니다.
+- **샌드박스 설정 패널**: 중력 감도(0.3x ~ 2.5x), 입자 크기(0.6x ~ 2.2x), 입자 밀도(0.5x ~ 2.0x)를 자유롭게 실시간 조절 (Setup 화면의 S E T T 버튼).
+- **실시간 알고리즘 사운드**: 알고리즘에 기반해 빗소리, 모닥불 나무 소리, 파도 소리를 리소스 없이 실시간 PCM 합성 (SOUND 토글).
+- **인터랙티브 장애물 그리기**: 화면을 문질러 임시 장애물 선을 그리면 모래알, 물보라, 빗방울이 탄성 물리로 튕겨 나감 (드래그 드로잉).
+- **15가지 이상의 프리미엄 모드**: 클래식 모래시계(Sand), 레트로 LED Grid, 반투명 물결 sloshing 물리(Water), 모닥불 타는 불꽃 시뮬레이션(Fire), 자성유체 가상 자석 효과(Magnetic), 벡터 필드 발광 모드(Aurora), 창유리 물방울 및 와이퍼 시뮬레이션(Rain), 블랙홀 중력 성간 궤도 모델(Black Hole), 터치 반응형 플라즈마 아크(Electric) 등 탑재.
 
 ### 빌드·릴리즈 절차
 

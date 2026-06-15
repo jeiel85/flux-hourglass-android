@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -45,7 +46,16 @@ object TimerPreferenceKeys {
     val CALIBRATION_X = intPreferencesKey("calibration_x")
     val CALIBRATION_Y = intPreferencesKey("calibration_y")
     val CALIBRATION_Z = intPreferencesKey("calibration_z")
+    val SANDBOX_GRAVITY_SCALE = floatPreferencesKey("sandbox_gravity_scale")
+    val SANDBOX_PARTICLE_SIZE = floatPreferencesKey("sandbox_particle_size")
+    val SANDBOX_PARTICLE_COUNT = floatPreferencesKey("sandbox_particle_count")
 }
+
+data class SandboxSettings(
+    val gravityScale: Float = 1.0f,
+    val particleSize: Float = 1.0f,
+    val particleCount: Float = 1.0f,
+)
 
 data class LastDuration(
     val hours: Int,
@@ -105,6 +115,23 @@ object TimerPreferences {
             prefs[TimerPreferenceKeys.CALIBRATION_X] = 0
             prefs[TimerPreferenceKeys.CALIBRATION_Y] = 0
             prefs[TimerPreferenceKeys.CALIBRATION_Z] = 9810
+        }
+    }
+
+    fun observeSandbox(context: Context): Flow<SandboxSettings> =
+        context.timerDataStore.data.map { prefs ->
+            SandboxSettings(
+                gravityScale = prefs[TimerPreferenceKeys.SANDBOX_GRAVITY_SCALE] ?: 1.0f,
+                particleSize = prefs[TimerPreferenceKeys.SANDBOX_PARTICLE_SIZE] ?: 1.0f,
+                particleCount = prefs[TimerPreferenceKeys.SANDBOX_PARTICLE_COUNT] ?: 1.0f,
+            )
+        }
+
+    suspend fun saveSandbox(context: Context, settings: SandboxSettings) {
+        context.timerDataStore.edit { prefs ->
+            prefs[TimerPreferenceKeys.SANDBOX_GRAVITY_SCALE] = settings.gravityScale
+            prefs[TimerPreferenceKeys.SANDBOX_PARTICLE_SIZE] = settings.particleSize
+            prefs[TimerPreferenceKeys.SANDBOX_PARTICLE_COUNT] = settings.particleCount
         }
     }
 }

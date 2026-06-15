@@ -23,6 +23,13 @@ class TimerViewModel : ViewModel() {
     private val _remainingMillis = MutableStateFlow(0L)
     val remainingMillis: StateFlow<Long> = _remainingMillis.asStateFlow()
 
+    private val _sandboxSettings = MutableStateFlow(SandboxSettings())
+    val sandboxSettings: StateFlow<SandboxSettings> = _sandboxSettings.asStateFlow()
+
+    fun updateSandboxSettings(settings: SandboxSettings) {
+        _sandboxSettings.value = settings
+    }
+
     private var timerJob: Job? = null
     var totalDuration: Long = 0L
         private set

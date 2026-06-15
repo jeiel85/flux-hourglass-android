@@ -7,6 +7,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-06-15
+
+### Added
+- **Sandbox Settings Panel**: Sliders to adjust Gravity Sensitivity (0.3x to 2.5x), Particle Size (0.6x to 2.2x), and Particle Density (0.5x to 2.0x), accessible via the Setup Screen's `S E T T` button.
+- **Procedural Soundscapes**: Real-time PCM audio synthesis using math-modeled white noise and wave filters to generate immersive environments for rain (low-pass noise), fire (crackles + pops), and water (amplitude-modulated wave noise) with zero APK bloat.
+- **Interactive Obstacle Drawing**: Drag-to-draw temporary fading barrier lines that deflect sand particles, water splashes, and rain drops dynamically using elastic 2D collision physics.
+
 ## [1.7.0] — 2026-06-14
 
 ### Added
