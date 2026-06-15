@@ -14,7 +14,10 @@ try {
     function Resolve-DefaultVersion {
         $buildFile = Join-Path $root "app\build.gradle.kts"
         $versionLine = Select-String -Path $buildFile -Pattern 'versionName\s*=' | Select-Object -First 1
-        if ($null -eq $versionLine -or $versionLine.Line -notmatch '"([^"]+)"') {
+        # Match the `?: "X.Y.Z"` fallback literal specifically. A bare
+        # '"([^"]+)"' would grab the first quoted string on the line, which is
+        # findProperty("VERSION_NAME") — yielding the literal "VERSION_NAME".
+        if ($null -eq $versionLine -or $versionLine.Line -notmatch '\?:\s*"([^"]+)"') {
             throw "Could not resolve default versionName from app/build.gradle.kts"
         }
         return $Matches[1]

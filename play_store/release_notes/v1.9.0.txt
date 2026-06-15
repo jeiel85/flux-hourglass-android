@@ -1,0 +1,8 @@
+<ko-KR>
+- 오브젝트 선택을 좌우로 넘기는 한 줄로 정리했어요. 화면을 덜 차지해 시간 설정과 시작이 한결 편해집니다.
+- 선택한 오브젝트가 가운데로 부드럽게 자동 정렬됩니다.
+</ko-KR>
+<en-US>
+- The object picker is now a single swipe-through row, so it takes far less space and setting the time and starting is easier.
+- Your selected object glides neatly to the center.
+</en-US>

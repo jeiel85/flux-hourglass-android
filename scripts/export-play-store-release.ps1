@@ -15,7 +15,9 @@ function Resolve-Version {
 
     $buildFile = Join-Path $PSScriptRoot "..\app\build.gradle.kts"
     $versionLine = Select-String -Path $buildFile -Pattern 'versionName\s*=' | Select-Object -First 1
-    if ($null -eq $versionLine -or $versionLine.Line -notmatch '"([^"]+)"') {
+    # Match the `?: "X.Y.Z"` fallback literal; a bare '"([^"]+)"' would capture
+    # findProperty("VERSION_NAME") and return the literal "VERSION_NAME".
+    if ($null -eq $versionLine -or $versionLine.Line -notmatch '\?:\s*"([^"]+)"') {
         throw "Could not resolve versionName from app/build.gradle.kts"
     }
 

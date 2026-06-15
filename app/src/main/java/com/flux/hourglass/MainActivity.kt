@@ -23,6 +23,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -30,9 +31,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +42,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -71,6 +75,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -376,48 +381,71 @@ fun SetupScreen(
             }
         }
 
-        // Mode toggles — two rows of 5
-        Column(
+        // Mode selector — a single horizontal filmstrip you swipe through.
+        // One row instead of three frees the vertical space the picker and
+        // START button need, and scales as more objects are added.
+        val modeListState = rememberLazyListState()
+        LaunchedEffect(mode) {
+            val index = ModeOptions.indexOfFirst { it.mode == mode }
+            if (index >= 0) {
+                // Glide the chosen object into the centre. If it isn't yet
+                // measured (off-screen on first frame), jump close first.
+                fun centerDelta(): Float? {
+                    val info = modeListState.layoutInfo
+                    val item = info.visibleItemsInfo.firstOrNull { it.index == index }
+                        ?: return null
+                    val viewportCenter = (info.viewportStartOffset + info.viewportEndOffset) / 2f
+                    return item.offset + item.size / 2f - viewportCenter
+                }
+                val delta = centerDelta()
+                if (delta != null) {
+                    modeListState.animateScrollBy(delta)
+                } else {
+                    modeListState.scrollToItem(index)
+                    centerDelta()?.let { modeListState.animateScrollBy(it) }
+                }
+            }
+        }
+        Box(
             modifier = Modifier
-                .padding(horizontal = 8.dp)
-                .testTag("mode_column"),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxWidth()
+                .testTag("mode_column")
         ) {
-            Row(
-                modifier = Modifier.testTag("mode_row_1"),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalAlignment = Alignment.CenterVertically
+            LazyRow(
+                state = modeListState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("mode_scroller"),
+                horizontalArrangement = Arrangement.spacedBy(28.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                contentPadding = PaddingValues(horizontal = 48.dp)
             ) {
-                ModeTab("S A N D", mode == DisplayMode.SAND, { onModeChange(DisplayMode.SAND) }, "mode_sand")
-                ModeTab("L E D", mode == DisplayMode.LED, { onModeChange(DisplayMode.LED) }, "mode_led")
-                ModeTab("W A T E R", mode == DisplayMode.WATER, { onModeChange(DisplayMode.WATER) }, "mode_water")
-                ModeTab("N E B U L A", mode == DisplayMode.NEBULA, { onModeChange(DisplayMode.NEBULA) }, "mode_nebula")
-                ModeTab("M O S S", mode == DisplayMode.MOSS, { onModeChange(DisplayMode.MOSS) }, "mode_moss")
+                items(ModeOptions, key = { it.tag }) { option ->
+                    ModeTab(
+                        label = option.label,
+                        selected = mode == option.mode,
+                        onClick = { onModeChange(option.mode) },
+                        tag = option.tag
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.testTag("mode_row_2"),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ModeTab("I N K", mode == DisplayMode.INK, { onModeChange(DisplayMode.INK) }, "mode_ink")
-                ModeTab("C R Y S T A L", mode == DisplayMode.CRYSTAL, { onModeChange(DisplayMode.CRYSTAL) }, "mode_crystal")
-                ModeTab("W A X", mode == DisplayMode.WAX, { onModeChange(DisplayMode.WAX) }, "mode_wax")
-                ModeTab("F L I P", mode == DisplayMode.FLIP, { onModeChange(DisplayMode.FLIP) }, "mode_flip")
-                ModeTab("F I R E", mode == DisplayMode.FIRE, { onModeChange(DisplayMode.FIRE) }, "mode_fire")
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.testTag("mode_row_3"),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ModeTab("M A G N E T", mode == DisplayMode.MAGNETIC, { onModeChange(DisplayMode.MAGNETIC) }, "mode_magnetic")
-                ModeTab("A U R O R A", mode == DisplayMode.AURORA, { onModeChange(DisplayMode.AURORA) }, "mode_aurora")
-                ModeTab("R A I N", mode == DisplayMode.RAIN, { onModeChange(DisplayMode.RAIN) }, "mode_rain")
-                ModeTab("B L A C K", mode == DisplayMode.BLACKHOLE, { onModeChange(DisplayMode.BLACKHOLE) }, "mode_blackhole")
-                ModeTab("E L E C", mode == DisplayMode.ELECTRIC, { onModeChange(DisplayMode.ELECTRIC) }, "mode_electric")
-            }
+            // Edge fades hint that the strip continues past both ends.
+            // matchParentSize overlays the row without forcing the wrapping
+            // Box to grow (a fillMaxHeight child here would stretch to the
+            // whole Column and shove the picker off-screen). No pointer
+            // modifiers, so the items underneath stay tappable.
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            0.0f to PureBlack,
+                            0.07f to Color.Transparent,
+                            0.93f to Color.Transparent,
+                            1.0f to PureBlack
+                        )
+                    )
+            )
         }
 
         // Quick Presets — minimal text labels
@@ -558,6 +586,27 @@ private fun ModeTab(
         )
     }
 }
+
+private data class ModeOption(val mode: DisplayMode, val label: String, val tag: String)
+
+// Display order of the object filmstrip. New objects append here.
+private val ModeOptions = listOf(
+    ModeOption(DisplayMode.SAND, "S A N D", "mode_sand"),
+    ModeOption(DisplayMode.LED, "L E D", "mode_led"),
+    ModeOption(DisplayMode.WATER, "W A T E R", "mode_water"),
+    ModeOption(DisplayMode.NEBULA, "N E B U L A", "mode_nebula"),
+    ModeOption(DisplayMode.MOSS, "M O S S", "mode_moss"),
+    ModeOption(DisplayMode.INK, "I N K", "mode_ink"),
+    ModeOption(DisplayMode.CRYSTAL, "C R Y S T A L", "mode_crystal"),
+    ModeOption(DisplayMode.WAX, "W A X", "mode_wax"),
+    ModeOption(DisplayMode.FLIP, "F L I P", "mode_flip"),
+    ModeOption(DisplayMode.FIRE, "F I R E", "mode_fire"),
+    ModeOption(DisplayMode.MAGNETIC, "M A G N E T", "mode_magnetic"),
+    ModeOption(DisplayMode.AURORA, "A U R O R A", "mode_aurora"),
+    ModeOption(DisplayMode.RAIN, "R A I N", "mode_rain"),
+    ModeOption(DisplayMode.BLACKHOLE, "B L A C K", "mode_blackhole"),
+    ModeOption(DisplayMode.ELECTRIC, "E L E C", "mode_electric"),
+)
 
 private data class TimePreset(val label: String, val h: Int, val m: Int, val s: Int)
 
