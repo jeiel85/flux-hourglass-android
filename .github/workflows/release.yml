@@ -86,7 +86,6 @@ jobs:
           body_path: ${{ steps.notes.outputs.body_path }}
           files: |
             app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
           generate_release_notes: ${{ steps.notes.outputs.generate == 'true' }}
           draft: false
           prerelease: false
