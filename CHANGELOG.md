@@ -7,6 +7,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+- **11 visualizer modes cut.** Dropped Nebula, Moss, Ink, Crystal, Wax, Flip, Magnetic, Aurora, Rain, Black Hole, and Electric to refocus the app on its hourglass identity. Users who had one of these modes persisted as their last selection automatically fall back to Sand on next launch.
+
+### Changed
+- **LED mode reworked into a liquid-level dot matrix.** The 16×32 grid now fills bottom-up with a surface that tilts like a real liquid when the device tips (accelerometer is now actually used; the previous dead sensor/calibration code was removed), and the boundary cells carry a subtle pulse. The sound toggle is hidden in LED since it has no soundscape.
+- **Sand soundscape added.** Procedural audio now synthesizes a soft falling-grain sound for Sand, alongside the existing campfire and wave sounds. The generic hum fallback for modes without a dedicated sound was removed.
+- **Fire respects the Sandbox gravity setting.** The Gravity Sensitivity slider now meaningfully affects flame rise, ember turbulence, and tilt bias in Fire mode (behavior at 1.0× is unchanged).
+
 ## [1.9.1] — 2026-06-15
 
 ### Fixed

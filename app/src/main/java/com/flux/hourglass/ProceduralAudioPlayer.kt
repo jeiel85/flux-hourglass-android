@@ -49,10 +49,15 @@ class ProceduralAudioPlayer {
                         val whiteNoise = random.nextFloat() * 2f - 1f
 
                         when (modeToPlay) {
-                            DisplayMode.RAIN -> {
-                                // Rain: white noise low-pass filtered
-                                lastOut = lastOut + 0.12f * (whiteNoise - lastOut)
-                                buffer[i] = (lastOut * 13000f).toInt().coerceIn(-32768, 32767).toShort()
+                            DisplayMode.SAND -> {
+                                // Sand: soft low-pass noise like gentle falling grains,
+                                // plus rare subtle grain ticks.
+                                lastOut = lastOut + 0.09f * (whiteNoise - lastOut)
+                                var sample = lastOut * 6000f
+                                if (random.nextFloat() < 0.0002f) {
+                                    sample += (random.nextFloat() * 8000f - 4000f)
+                                }
+                                buffer[i] = sample.toInt().coerceIn(-32768, 32767).toShort()
                             }
                             DisplayMode.FIRE -> {
                                 // Fire: soft low rumble + crackle pops
@@ -76,9 +81,8 @@ class ProceduralAudioPlayer {
                                 buffer[i] = (lastOut * 12000f * swell).toInt().coerceIn(-32768, 32767).toShort()
                             }
                             else -> {
-                                // Default soft hum
-                                lastOut = lastOut + 0.05f * (whiteNoise - lastOut)
-                                buffer[i] = (lastOut * 2000f).toInt().coerceIn(-32768, 32767).toShort()
+                                // LED is silent (start() is not called for LED).
+                                buffer[i] = 0
                             }
                         }
                     }

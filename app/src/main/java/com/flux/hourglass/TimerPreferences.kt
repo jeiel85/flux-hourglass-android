@@ -13,26 +13,13 @@ import kotlinx.coroutines.flow.map
 
 val Context.timerDataStore: DataStore<Preferences> by preferencesDataStore(name = "timer_prefs")
 
-enum class DisplayMode { 
-    SAND, LED, WATER, 
-    NEBULA, MOSS, INK, CRYSTAL, WAX, FLIP, FIRE,
-    MAGNETIC, AURORA, RAIN, BLACKHOLE, ELECTRIC;
+enum class DisplayMode {
+    SAND, LED, WATER, FIRE;
     companion object {
         fun parse(s: String?): DisplayMode = when (s) {
             "LED" -> LED
             "WATER" -> WATER
-            "NEBULA" -> NEBULA
-            "MOSS" -> MOSS
-            "INK" -> INK
-            "CRYSTAL" -> CRYSTAL
-            "WAX" -> WAX
-            "FLIP" -> FLIP
             "FIRE" -> FIRE
-            "MAGNETIC" -> MAGNETIC
-            "AURORA" -> AURORA
-            "RAIN" -> RAIN
-            "BLACKHOLE" -> BLACKHOLE
-            "ELECTRIC" -> ELECTRIC
             else -> SAND
         }
     }
