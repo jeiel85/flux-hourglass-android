@@ -1,0 +1,22 @@
+<ko-KR>
+v1.10.0 — 모래시계 본연의 모습으로
+
+정리
+• 15개 모드를 4개(Sand·Water·Fire·LED)로 줄여 앱의 정체성에 집중했습니다. 삭제된 모드를 쓰던 분은 자동으로 Sand로 전환됩니다.
+
+개선
+• LED 모드를 액체 수면처럼 기울어지는 도트 매트릭스로 다시 만들었습니다. 폰을 기울이면 켜진 영역이 진짜 액체처럼 흔들리고 경계 셀이 은은하게 맥동합니다.
+• Sand 모드에 부드러운 모래 떨어지는 소리를 추가했습니다. 기존 모닥불·파도 소리와 함께 세 가지 사운드스케이프를 즐길 수 있어요.
+• Fire 모드가 샌드박스 중력 감도 설정을 따릅니다. SETT 슬라이더로 불꽃과 잔불의 움직임을 조절할 수 있습니다.
+</ko-KR>
+<en-US>
+v1.10.0 — Back to the hourglass
+
+Trimmed
+• Cut 15 modes down to 4 (Sand, Water, Fire, LED) to refocus on the app's identity. If your last mode was removed, you'll fall back to Sand automatically.
+
+Improved
+• LED mode is now a liquid-level dot matrix. Tip the phone and the lit surface tilts like a real liquid, with a subtle pulse on the boundary cells.
+• Added a soft falling-grain soundscape for Sand, joining the existing campfire and wave sounds.
+• Fire now respects the Sandbox gravity setting — the SETT slider controls flame and ember motion.
+</en-US>

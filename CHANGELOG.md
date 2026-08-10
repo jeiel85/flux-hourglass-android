@@ -5,7 +5,7 @@ All notable changes are recorded here. New entries go on top.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.10.0] — 2026-08-10
 
 ### Removed
 - **11 visualizer modes cut.** Dropped Nebula, Moss, Ink, Crystal, Wax, Flip, Magnetic, Aurora, Rain, Black Hole, and Electric to refocus the app on its hourglass identity. Users who had one of these modes persisted as their last selection automatically fall back to Sand on next launch.

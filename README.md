@@ -35,6 +35,7 @@
 
 | Version | Date | Notes |
 |---------|------|-------|
+| [1.10.0](docs/releases/v1.10.0.md) | 2026-08-10 | Trim 15 modes to 4 (Sand/Water/Fire/LED); LED liquid-level rework, Sand soundscape, Fire gravity setting |
 | [1.9.1](docs/releases/v1.9.1.md) | 2026-06-15 | Fix: time picker & START button could disappear on the setup screen |
 | [1.9.0](docs/releases/v1.9.0.md) | 2026-06-15 | Swipeable single-row object selector |
 | [1.8.0](docs/releases/v1.8.0.md) | 2026-06-15 | Sandbox Settings, Procedural Soundscapes, Interactive obstacle drawing |
