@@ -15,14 +15,16 @@ function Resolve-Version {
     }
 
     $buildFile = Join-Path $PSScriptRoot "..\app\build.gradle.kts"
-    $versionLine = Select-String -Path $buildFile -Pattern 'versionName\s*=' | Select-Object -First 1
-    # Match the `?: "X.Y.Z"` fallback literal; a bare '"([^"]+)"' would capture
-    # findProperty("VERSION_NAME") and return the literal "VERSION_NAME".
-    if ($null -eq $versionLine -or $versionLine.Line -notmatch '\?:\s*"([^"]+)"') {
+    # Target the findProperty("VERSION_NAME") fallback line specifically —
+    # a bare `versionName\s*=` also matches unrelated local variables like
+    # `resolvedVersionName = ...`, which happens to appear earlier in the
+    # file and would win Select-Object -First 1 by coincidence.
+    $versionLine = Select-String -Path $buildFile -Pattern 'findProperty\("VERSION_NAME"\).*\?:\s*"([^"]+)"' | Select-Object -First 1
+    if ($null -eq $versionLine) {
         throw "Could not resolve versionName from app/build.gradle.kts"
     }
 
-    return $Matches[1]
+    return $versionLine.Matches[0].Groups[1].Value
 }
 
 function Resolve-VersionCode {

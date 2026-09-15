@@ -15,11 +15,19 @@ android {
     minSdk = 24
     targetSdk = 36
     val resolvedVersionName = (findProperty("VERSION_NAME") as String?) ?: "1.10.0"
-    val (verMajor, verMinor, verPatch) = resolvedVersionName.split(".").map { it.toInt() }
     // Derived from versionName so it never needs a manual bump; keep this
-    // formula in sync with scripts/export-play-store-release.ps1.
+    // formula in sync with scripts/export-play-store-release.ps1. Parsing
+    // is lazy (inside the ?: branch) so an explicit VERSION_CODE override
+    // still works even when versionName isn't in strict X.Y.Z form.
     versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull()
-      ?: (verMajor * 1_000_000 + verMinor * 1_000 + verPatch)
+      ?: run {
+        val parts = resolvedVersionName.split(".")
+        require(parts.size == 3 && parts.all { it.toIntOrNull() != null }) {
+          "VERSION_NAME '$resolvedVersionName' must be in X.Y.Z numeric form to derive a versionCode"
+        }
+        val (verMajor, verMinor, verPatch) = parts.map { it.toInt() }
+        verMajor * 1_000_000 + verMinor * 1_000 + verPatch
+      }
     versionName = resolvedVersionName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
