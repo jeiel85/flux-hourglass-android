@@ -22,19 +22,27 @@ android {
     versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull()
       ?: run {
         val parts = resolvedVersionName.split(".")
-        // 1-4 digits, no sign — matches ^\d{1,4}$ in
-        // scripts/export-play-store-release.ps1's Resolve-VersionCode.
-        // Capping each segment's length (not just checking it parses)
-        // keeps the multiplication below Long's range by a huge margin,
-        // so it can't silently wrap the way unbounded Int/Long math did.
-        require(parts.size == 3 && parts.all { it.isNotEmpty() && it.length <= 4 && it.all(Char::isDigit) }) {
-          "VERSION_NAME '$resolvedVersionName' must be in X.Y.Z numeric form (each part 0-9999) to derive a versionCode"
+        require(parts.size == 3) {
+          "VERSION_NAME '$resolvedVersionName' must be in X.Y.Z numeric form to derive a versionCode"
         }
-        val (verMajor, verMinor, verPatch) = parts.map { it.toLong() }
+        val (majorStr, minorStr, patchStr) = parts
+        // ASCII digits only (Char.isDigit() is Unicode-aware and would
+        // accept e.g. Arabic-Indic digits that toLong() can't parse).
+        // Minor/patch capped to 3 digits (0-999) to match the formula's
+        // own encoding radix (*1_000 / *1) — a 4-digit minor or patch
+        // would spill into the next band and collide with, or exceed,
+        // an adjacent version's derived code. Major gets one more digit
+        // of slack; the Play Console ceiling check below catches
+        // anything still too large, on either segment.
+        fun isAsciiDigits(s: String, maxLen: Int) =
+          s.isNotEmpty() && s.length <= maxLen && s.all { it in '0'..'9' }
+        require(isAsciiDigits(majorStr, 4) && isAsciiDigits(minorStr, 3) && isAsciiDigits(patchStr, 3)) {
+          "VERSION_NAME '$resolvedVersionName' must be in X.Y.Z numeric form (Y and Z each 0-999) to derive a versionCode"
+        }
         // Long arithmetic so an oversized segment (e.g. a typo'd major)
         // can't silently wrap Int32 into a smaller-but-valid versionCode;
         // Play Console's own documented ceiling is 2_100_000_000.
-        val derived = verMajor * 1_000_000 + verMinor * 1_000 + verPatch
+        val derived = majorStr.toLong() * 1_000_000 + minorStr.toLong() * 1_000 + patchStr.toLong()
         require(derived in 1..2_100_000_000L) {
           "Derived versionCode $derived for VERSION_NAME '$resolvedVersionName' is outside Play Console's valid range (1..2,100,000,000)"
         }

@@ -32,15 +32,22 @@ function Resolve-VersionCode {
     }
 
     $parts = $ResolvedVersion.Split(".")
-    # @(...) forces array context: Where-Object unwraps a single match to a
-    # bare scalar, and an empty-string match would then be treated as falsy
-    # by -or below, silently letting a version like "1..0" through.
-    # 1-4 digits per part (matches app/build.gradle.kts) keeps the
-    # multiplication below [long]'s range by a huge margin, so an
-    # oversized segment can't silently wrap into a smaller-but-valid code.
-    $invalidParts = @($parts | Where-Object { $_ -notmatch '^\d{1,4}$' })
-    if ($parts.Length -ne 3 -or $invalidParts.Count -gt 0) {
-        throw "Version '$ResolvedVersion' is not in X.Y.Z numeric form (each part 0-9999); cannot derive a versionCode."
+    if ($parts.Length -ne 3) {
+        throw "Version '$ResolvedVersion' is not in X.Y.Z numeric form; cannot derive a versionCode."
+    }
+    # [0-9] (not \d, which is Unicode-aware and would accept e.g.
+    # Arabic-Indic digits that [long] can't parse) — @(...) forces array
+    # context since Where-Object unwraps a single match to a bare scalar,
+    # and an empty-string match would then be treated as falsy by -or,
+    # silently letting a version like "1..0" through. Minor/patch capped
+    # to 3 digits (0-999) to match the formula's own encoding radix
+    # (*1_000 / *1) — a 4-digit minor or patch would spill into the next
+    # band and collide with, or exceed, an adjacent version's derived
+    # code; major gets one more digit of slack, same as app/build.gradle.kts.
+    $badMajor = @($parts[0] | Where-Object { $_ -notmatch '^[0-9]{1,4}$' })
+    $badMinorOrPatch = @($parts[1, 2] | Where-Object { $_ -notmatch '^[0-9]{1,3}$' })
+    if ($badMajor.Count -gt 0 -or $badMinorOrPatch.Count -gt 0) {
+        throw "Version '$ResolvedVersion' is not in X.Y.Z numeric form (Y and Z each 0-999); cannot derive a versionCode."
     }
     $derived = [long]$parts[0] * 1000000 + [long]$parts[1] * 1000 + [long]$parts[2]
     # Mirrors app/build.gradle.kts's Play Console ceiling check.
