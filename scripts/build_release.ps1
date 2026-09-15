@@ -56,8 +56,6 @@ try {
 
     Write-Host "==> Building release artifacts ($resolvedVersion)"
     Write-Host "    .\gradlew.bat $($gradleArgs -join ' ')"
-    $env:VERSION_NAME = $resolvedVersion
-    if ($VersionCode -gt 0) { $env:VERSION_CODE = "$VersionCode" }
     & .\gradlew.bat @gradleArgs
     if ($LASTEXITCODE -ne 0) { throw "Gradle release build failed." }
 

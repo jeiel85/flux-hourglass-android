@@ -24,13 +24,22 @@ android {
         val parts = resolvedVersionName.split(".")
         // Digits only, no sign — matches ^\d+$ in
         // scripts/export-play-store-release.ps1's Resolve-VersionCode.
-        // toIntOrNull() alone would accept a leading +/- that the
-        // PowerShell mirror rejects.
-        require(parts.size == 3 && parts.all { it.isNotEmpty() && it.all(Char::isDigit) }) {
+        // toLongOrNull() alone (vs. toIntOrNull) also rejects a segment
+        // with too many digits to parse at all, so that case fails this
+        // require() with a clear message instead of a raw
+        // NumberFormatException a few lines down.
+        require(parts.size == 3 && parts.all { it.isNotEmpty() && it.all(Char::isDigit) && it.toLongOrNull() != null }) {
           "VERSION_NAME '$resolvedVersionName' must be in X.Y.Z numeric form to derive a versionCode"
         }
-        val (verMajor, verMinor, verPatch) = parts.map { it.toInt() }
-        verMajor * 1_000_000 + verMinor * 1_000 + verPatch
+        val (verMajor, verMinor, verPatch) = parts.map { it.toLong() }
+        // Long arithmetic so an oversized segment (e.g. a typo'd major)
+        // can't silently wrap Int32 into a smaller-but-valid versionCode;
+        // Play Console's own documented ceiling is 2_100_000_000.
+        val derived = verMajor * 1_000_000 + verMinor * 1_000 + verPatch
+        require(derived in 1..2_100_000_000L) {
+          "Derived versionCode $derived for VERSION_NAME '$resolvedVersionName' is outside Play Console's valid range (1..2,100,000,000)"
+        }
+        derived.toInt()
       }
     versionName = resolvedVersionName
 
