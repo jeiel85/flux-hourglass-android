@@ -82,7 +82,7 @@ $env:STORE_PASSWORD = "***"
 $env:KEY_ALIAS = "upload"
 $env:KEY_PASSWORD = "***"
 
-.\scripts\build_release.ps1 -Version 1.2.0 -VersionCode 3
+.\scripts\build_release.ps1 -Version 1.2.0
 ```
 
 This runs tests, produces signed APK + AAB, and copies

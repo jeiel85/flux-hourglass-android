@@ -14,8 +14,13 @@ android {
     applicationId = "com.flux.hourglass"
     minSdk = 24
     targetSdk = 36
-    versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull() ?: 12
-    versionName = (findProperty("VERSION_NAME") as String?) ?: "1.10.0"
+    val resolvedVersionName = (findProperty("VERSION_NAME") as String?) ?: "1.10.0"
+    val (verMajor, verMinor, verPatch) = resolvedVersionName.split(".").map { it.toInt() }
+    // Derived from versionName so it never needs a manual bump; keep this
+    // formula in sync with scripts/export-play-store-release.ps1.
+    versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull()
+      ?: (verMajor * 1_000_000 + verMinor * 1_000 + verPatch)
+    versionName = resolvedVersionName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

@@ -1,5 +1,6 @@
 param(
     [string]$Version = "",
+    [int]$VersionCode = 0,
     [string]$AabPath = "",
     [string]$DesktopPath = ""
 )
@@ -25,18 +26,22 @@ function Resolve-Version {
 }
 
 function Resolve-VersionCode {
-    $buildFile = Join-Path $PSScriptRoot "..\app\build.gradle.kts"
-    $codeLine = Select-String -Path $buildFile -Pattern 'versionCode\s*=' | Select-Object -First 1
-    if ($null -eq $codeLine) {
-        throw "Could not resolve versionCode from app/build.gradle.kts"
+    # Mirrors the versionCode fallback formula in app/build.gradle.kts —
+    # keep both in sync if it ever changes.
+    param(
+        [string]$ResolvedVersion,
+        [int]$ExplicitVersionCode
+    )
+
+    if ($ExplicitVersionCode -gt 0) {
+        return $ExplicitVersionCode
     }
-    if ($codeLine.Line -match '\?:\s*(\d+)') {
-        return [int]$Matches[1]
+
+    $parts = $ResolvedVersion.Split(".")
+    if ($parts.Length -ne 3 -or ($parts | Where-Object { $_ -notmatch '^\d+$' })) {
+        throw "Version '$ResolvedVersion' is not in X.Y.Z numeric form; cannot derive a versionCode."
     }
-    if ($codeLine.Line -match '=\s*(\d+)') {
-        return [int]$Matches[1]
-    }
-    throw "Could not parse versionCode from line: $($codeLine.Line)"
+    return [int]$parts[0] * 1000000 + [int]$parts[1] * 1000 + [int]$parts[2]
 }
 
 function Resolve-DesktopPath {
@@ -112,7 +117,7 @@ function Resolve-ArtifactPath {
 }
 
 $resolvedVersion = Resolve-Version -ExplicitVersion $Version
-$resolvedCode = Resolve-VersionCode
+$resolvedCode = Resolve-VersionCode -ResolvedVersion $resolvedVersion -ExplicitVersionCode $VersionCode
 $desktop = Resolve-DesktopPath -ExplicitDesktopPath $DesktopPath
 
 # Convention (locked in — see RELEASE.md §5):

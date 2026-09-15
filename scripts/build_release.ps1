@@ -73,7 +73,7 @@ try {
 
     if (-not $NoExport) {
         Write-Host "==> Exporting release to desktop"
-        & (Join-Path $PSScriptRoot "export-play-store-release.ps1") -Version $resolvedVersion
+        & (Join-Path $PSScriptRoot "export-play-store-release.ps1") -Version $resolvedVersion -VersionCode $VersionCode
     }
 }
 finally {
