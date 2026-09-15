@@ -22,14 +22,13 @@ android {
     versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull()
       ?: run {
         val parts = resolvedVersionName.split(".")
-        // Digits only, no sign — matches ^\d+$ in
+        // 1-4 digits, no sign — matches ^\d{1,4}$ in
         // scripts/export-play-store-release.ps1's Resolve-VersionCode.
-        // toLongOrNull() alone (vs. toIntOrNull) also rejects a segment
-        // with too many digits to parse at all, so that case fails this
-        // require() with a clear message instead of a raw
-        // NumberFormatException a few lines down.
-        require(parts.size == 3 && parts.all { it.isNotEmpty() && it.all(Char::isDigit) && it.toLongOrNull() != null }) {
-          "VERSION_NAME '$resolvedVersionName' must be in X.Y.Z numeric form to derive a versionCode"
+        // Capping each segment's length (not just checking it parses)
+        // keeps the multiplication below Long's range by a huge margin,
+        // so it can't silently wrap the way unbounded Int/Long math did.
+        require(parts.size == 3 && parts.all { it.isNotEmpty() && it.length <= 4 && it.all(Char::isDigit) }) {
+          "VERSION_NAME '$resolvedVersionName' must be in X.Y.Z numeric form (each part 0-9999) to derive a versionCode"
         }
         val (verMajor, verMinor, verPatch) = parts.map { it.toLong() }
         // Long arithmetic so an oversized segment (e.g. a typo'd major)

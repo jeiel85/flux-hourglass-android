@@ -35,11 +35,19 @@ function Resolve-VersionCode {
     # @(...) forces array context: Where-Object unwraps a single match to a
     # bare scalar, and an empty-string match would then be treated as falsy
     # by -or below, silently letting a version like "1..0" through.
-    $invalidParts = @($parts | Where-Object { $_ -notmatch '^\d+$' })
+    # 1-4 digits per part (matches app/build.gradle.kts) keeps the
+    # multiplication below [long]'s range by a huge margin, so an
+    # oversized segment can't silently wrap into a smaller-but-valid code.
+    $invalidParts = @($parts | Where-Object { $_ -notmatch '^\d{1,4}$' })
     if ($parts.Length -ne 3 -or $invalidParts.Count -gt 0) {
-        throw "Version '$ResolvedVersion' is not in X.Y.Z numeric form; cannot derive a versionCode."
+        throw "Version '$ResolvedVersion' is not in X.Y.Z numeric form (each part 0-9999); cannot derive a versionCode."
     }
-    return [int]$parts[0] * 1000000 + [int]$parts[1] * 1000 + [int]$parts[2]
+    $derived = [long]$parts[0] * 1000000 + [long]$parts[1] * 1000 + [long]$parts[2]
+    # Mirrors app/build.gradle.kts's Play Console ceiling check.
+    if ($derived -lt 1 -or $derived -gt 2100000000) {
+        throw "Derived versionCode $derived for version '$ResolvedVersion' is outside Play Console's valid range (1..2,100,000,000)."
+    }
+    return [int]$derived
 }
 
 function Resolve-DesktopPath {
