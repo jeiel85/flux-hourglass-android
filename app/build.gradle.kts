@@ -22,7 +22,11 @@ android {
     versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull()
       ?: run {
         val parts = resolvedVersionName.split(".")
-        require(parts.size == 3 && parts.all { it.toIntOrNull() != null }) {
+        // Digits only, no sign — matches ^\d+$ in
+        // scripts/export-play-store-release.ps1's Resolve-VersionCode.
+        // toIntOrNull() alone would accept a leading +/- that the
+        // PowerShell mirror rejects.
+        require(parts.size == 3 && parts.all { it.isNotEmpty() && it.all(Char::isDigit) }) {
           "VERSION_NAME '$resolvedVersionName' must be in X.Y.Z numeric form to derive a versionCode"
         }
         val (verMajor, verMinor, verPatch) = parts.map { it.toInt() }

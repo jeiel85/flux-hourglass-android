@@ -7,6 +7,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "lib\version-defaults.ps1")
+
 function Resolve-Version {
     param([string]$ExplicitVersion)
 
@@ -14,17 +16,7 @@ function Resolve-Version {
         return $ExplicitVersion.TrimStart("v")
     }
 
-    $buildFile = Join-Path $PSScriptRoot "..\app\build.gradle.kts"
-    # Target the findProperty("VERSION_NAME") fallback line specifically —
-    # a bare `versionName\s*=` also matches unrelated local variables like
-    # `resolvedVersionName = ...`, which happens to appear earlier in the
-    # file and would win Select-Object -First 1 by coincidence.
-    $versionLine = Select-String -Path $buildFile -Pattern 'findProperty\("VERSION_NAME"\).*\?:\s*"([^"]+)"' | Select-Object -First 1
-    if ($null -eq $versionLine) {
-        throw "Could not resolve versionName from app/build.gradle.kts"
-    }
-
-    return $versionLine.Matches[0].Groups[1].Value
+    return Resolve-DefaultVersionName -BuildGradleKtsPath (Join-Path $PSScriptRoot "..\app\build.gradle.kts")
 }
 
 function Resolve-VersionCode {
@@ -40,7 +32,11 @@ function Resolve-VersionCode {
     }
 
     $parts = $ResolvedVersion.Split(".")
-    if ($parts.Length -ne 3 -or ($parts | Where-Object { $_ -notmatch '^\d+$' })) {
+    # @(...) forces array context: Where-Object unwraps a single match to a
+    # bare scalar, and an empty-string match would then be treated as falsy
+    # by -or below, silently letting a version like "1..0" through.
+    $invalidParts = @($parts | Where-Object { $_ -notmatch '^\d+$' })
+    if ($parts.Length -ne 3 -or $invalidParts.Count -gt 0) {
         throw "Version '$ResolvedVersion' is not in X.Y.Z numeric form; cannot derive a versionCode."
     }
     return [int]$parts[0] * 1000000 + [int]$parts[1] * 1000 + [int]$parts[2]

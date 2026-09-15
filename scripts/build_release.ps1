@@ -7,28 +7,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "lib\version-defaults.ps1")
+
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 Push-Location $root
 
 try {
-    function Resolve-DefaultVersion {
-        $buildFile = Join-Path $root "app\build.gradle.kts"
-        # Target the findProperty("VERSION_NAME") fallback line specifically —
-        # a bare `versionName\s*=` also matches unrelated local variables like
-        # `resolvedVersionName = ...`, which happens to appear earlier in the
-        # file and would win Select-Object -First 1 by coincidence.
-        $versionLine = Select-String -Path $buildFile -Pattern 'findProperty\("VERSION_NAME"\).*\?:\s*"([^"]+)"' | Select-Object -First 1
-        if ($null -eq $versionLine) {
-            throw "Could not resolve default versionName from app/build.gradle.kts"
-        }
-        return $versionLine.Matches[0].Groups[1].Value
-    }
-
     $resolvedVersion = if ($Version.Trim().Length -gt 0) {
         $Version.TrimStart("v")
     }
     else {
-        Resolve-DefaultVersion
+        Resolve-DefaultVersionName -BuildGradleKtsPath (Join-Path $root "app\build.gradle.kts")
     }
 
     foreach ($var in @("KEYSTORE_PATH", "STORE_PASSWORD", "KEY_ALIAS", "KEY_PASSWORD")) {
