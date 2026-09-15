@@ -6,8 +6,10 @@ markscene-android, nightseed-survivor-android 등 같은 머신에 있는 다른
 
 원칙은 단순합니다.
 
-1. `app/build.gradle.kts`의 `versionName` / `versionCode`가 단일 진실 공급원
-   (single source of truth).
+1. `app/build.gradle.kts`의 `versionName`이 단일 진실 공급원(single source of
+   truth)이고, `versionCode`는 `versionName`에서 자동 계산됩니다 — 수식은
+   `major * 1_000_000 + minor * 1_000 + patch` (예: `1.11.0` → `1011000`).
+   더 이상 손으로 올릴 필요가 없습니다.
 2. 릴리즈 키스토어는 `~/.keystore/flux-hourglass-upload.jks`에 보관, base64와
    비밀번호도 같은 폴더에 별도 파일로 백업.
 3. 태그(`vX.Y.Z`)를 푸시하면 GitHub Actions가 자동으로 서명된 APK + AAB를
@@ -82,16 +84,16 @@ UI 변경이 있으면 Roborazzi 베이스라인을 재기록합니다.
 .\gradlew.bat recordRoborazziDebug
 ```
 
-### 2.2 버전 번호 올리기
-`app/build.gradle.kts`에서 두 줄만 바꿉니다.
+### 2.2 버전 번호 정하기
+`versionCode`는 자동 계산되므로 정할 건 새 `versionName` 하나뿐입니다.
+의미 있는 변경이면 `+0.1.0`, 패치면 `+0.0.1`. 이 값을 2.5단계의 `-Version`과
+2.6단계의 태그(`vX.Y.Z`)에 그대로 씁니다.
 
-```kotlin
-versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull() ?: <새 코드>
-versionName = (findProperty("VERSION_NAME") as String?) ?: "<X.Y.Z>"
-```
-
-- `versionCode`는 직전 코드 + 1.
-- `versionName`은 의미 있는 변경이면 `+0.1.0`, 패치면 `+0.0.1`.
+`app/build.gradle.kts`의 fallback 리터럴(`"1.10.0"`)은 `-PVERSION_NAME` 없이
+빌드할 때만 쓰이는 값이라 매 릴리즈마다 바꿀 필요는 없지만, 헷갈리지
+않도록 최신 버전으로 맞춰두는 걸 권장합니다. `versionCode`를 특정 값으로
+강제해야 하는 예외 상황이면 `-PVERSION_CODE`(Gradle) 또는 `-VersionCode`
+(`build_release.ps1`)로 덮어쓸 수 있습니다.
 
 ### 2.3 릴리즈 노트 작성
 같은 버전명으로 두 파일을 만듭니다.
@@ -139,17 +141,18 @@ $env:STORE_PASSWORD = "<STORE_PASSWORD>"
 $env:KEY_ALIAS = "upload"
 $env:KEY_PASSWORD = "<KEY_PASSWORD>"
 
-.\scripts\build_release.ps1 -Version 1.2.0 -VersionCode 3
+.\scripts\build_release.ps1 -Version 1.11.0
 ```
 
 이게 내부적으로 하는 일:
 
 1. `./gradlew test`
-2. `./gradlew clean bundleRelease assembleRelease -PVERSION_NAME=1.2.0 -PVERSION_CODE=3`
+2. `./gradlew clean bundleRelease assembleRelease -PVERSION_NAME=1.11.0`
+   (`versionCode`는 `1.11.0` → `1011000`으로 자동 계산됩니다.)
 3. `scripts\export-play-store-release.ps1`을 호출해서 결과물을
    **`바탕화면\Build\`** 폴더로 복사. 파일 이름은
-   `flux-hourglass-v1.2.0-vc3.aab`,
-   `flux-hourglass-v1.2.0-vc3-release-notes.txt` **두 개만**입니다.
+   `flux-hourglass-v1.11.0-vc1011000.aab`,
+   `flux-hourglass-v1.11.0-vc1011000-release-notes.txt` **두 개만**입니다.
 
 **APK는 바탕화면(또는 `Build\` 하위)으로 복사하지 않습니다.** Play Console
 업로드에 필요한 것은 AAB뿐입니다. 사이드로드용 APK가 필요하면
@@ -194,7 +197,7 @@ APK가 보이면 잘못된 상태입니다 — 다음 export 실행 시 자동�
 |------|-------------|
 | `SDK location not found` | `local.properties`의 `sdk.dir` 누락. |
 | `Keystore file not found` | `KEYSTORE_PATH` 환경변수 누락. `~/.keystore/...`까지 풀 경로 지정. |
-| `Tag version X does not match versionName Y` (CI) | 태그명과 `app/build.gradle.kts`의 `versionName`이 다를 때. 한쪽을 맞춥니다. |
+| Play Console이 "이미 사용된 versionCode"라고 거부 | 같은 `versionName`으로 이미 업로드한 적이 있거나 `-VersionCode`로 자동 계산값을 낮게 덮어씀. 새 `versionName`을 올리거나 override를 제거합니다. |
 | Roborazzi 테스트 실패 | UI를 바꾼 뒤 베이스라인을 다시 안 기록한 경우. `recordRoborazziDebug` 실행 후 커밋. |
 | `secretsGradlePlugin`이 `.env` 못 찾음 | `.env.example`이 fallback이라 빌드 자체는 통과합니다. 신경 안 써도 됩니다. |
 

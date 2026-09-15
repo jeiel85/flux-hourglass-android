@@ -7,27 +7,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "lib\version-defaults.ps1")
+
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 Push-Location $root
 
 try {
-    function Resolve-DefaultVersion {
-        $buildFile = Join-Path $root "app\build.gradle.kts"
-        $versionLine = Select-String -Path $buildFile -Pattern 'versionName\s*=' | Select-Object -First 1
-        # Match the `?: "X.Y.Z"` fallback literal specifically. A bare
-        # '"([^"]+)"' would grab the first quoted string on the line, which is
-        # findProperty("VERSION_NAME") — yielding the literal "VERSION_NAME".
-        if ($null -eq $versionLine -or $versionLine.Line -notmatch '\?:\s*"([^"]+)"') {
-            throw "Could not resolve default versionName from app/build.gradle.kts"
-        }
-        return $Matches[1]
-    }
-
     $resolvedVersion = if ($Version.Trim().Length -gt 0) {
         $Version.TrimStart("v")
     }
     else {
-        Resolve-DefaultVersion
+        Resolve-DefaultVersionName -BuildGradleKtsPath (Join-Path $root "app\build.gradle.kts")
     }
 
     foreach ($var in @("KEYSTORE_PATH", "STORE_PASSWORD", "KEY_ALIAS", "KEY_PASSWORD")) {
@@ -66,14 +56,12 @@ try {
 
     Write-Host "==> Building release artifacts ($resolvedVersion)"
     Write-Host "    .\gradlew.bat $($gradleArgs -join ' ')"
-    $env:VERSION_NAME = $resolvedVersion
-    if ($VersionCode -gt 0) { $env:VERSION_CODE = "$VersionCode" }
     & .\gradlew.bat @gradleArgs
     if ($LASTEXITCODE -ne 0) { throw "Gradle release build failed." }
 
     if (-not $NoExport) {
         Write-Host "==> Exporting release to desktop"
-        & (Join-Path $PSScriptRoot "export-play-store-release.ps1") -Version $resolvedVersion
+        & (Join-Path $PSScriptRoot "export-play-store-release.ps1") -Version $resolvedVersion -VersionCode $VersionCode
     }
 }
 finally {

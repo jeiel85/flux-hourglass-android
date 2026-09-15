@@ -14,8 +14,41 @@ android {
     applicationId = "com.flux.hourglass"
     minSdk = 24
     targetSdk = 36
-    versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull() ?: 12
-    versionName = (findProperty("VERSION_NAME") as String?) ?: "1.10.0"
+    val resolvedVersionName = (findProperty("VERSION_NAME") as String?) ?: "1.10.0"
+    // Derived from versionName so it never needs a manual bump; keep this
+    // formula in sync with scripts/export-play-store-release.ps1. Parsing
+    // is lazy (inside the ?: branch) so an explicit VERSION_CODE override
+    // still works even when versionName isn't in strict X.Y.Z form.
+    versionCode = (findProperty("VERSION_CODE") as String?)?.toIntOrNull()
+      ?: run {
+        val parts = resolvedVersionName.split(".")
+        require(parts.size == 3) {
+          "VERSION_NAME '$resolvedVersionName' must be in X.Y.Z numeric form to derive a versionCode"
+        }
+        val (majorStr, minorStr, patchStr) = parts
+        // ASCII digits only (Char.isDigit() is Unicode-aware and would
+        // accept e.g. Arabic-Indic digits that toLong() can't parse).
+        // Minor/patch capped to 3 digits (0-999) to match the formula's
+        // own encoding radix (*1_000 / *1) — a 4-digit minor or patch
+        // would spill into the next band and collide with, or exceed,
+        // an adjacent version's derived code. Major gets one more digit
+        // of slack; the Play Console ceiling check below catches
+        // anything still too large, on either segment.
+        fun isAsciiDigits(s: String, maxLen: Int) =
+          s.isNotEmpty() && s.length <= maxLen && s.all { it in '0'..'9' }
+        require(isAsciiDigits(majorStr, 4) && isAsciiDigits(minorStr, 3) && isAsciiDigits(patchStr, 3)) {
+          "VERSION_NAME '$resolvedVersionName' must be in X.Y.Z numeric form (Y and Z each 0-999) to derive a versionCode"
+        }
+        // Long arithmetic so an oversized segment (e.g. a typo'd major)
+        // can't silently wrap Int32 into a smaller-but-valid versionCode;
+        // Play Console's own documented ceiling is 2_100_000_000.
+        val derived = majorStr.toLong() * 1_000_000 + minorStr.toLong() * 1_000 + patchStr.toLong()
+        require(derived in 1..2_100_000_000L) {
+          "Derived versionCode $derived for VERSION_NAME '$resolvedVersionName' is outside Play Console's valid range (1..2,100,000,000)"
+        }
+        derived.toInt()
+      }
+    versionName = resolvedVersionName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

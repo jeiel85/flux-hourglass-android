@@ -1,10 +1,13 @@
 param(
     [string]$Version = "",
+    [int]$VersionCode = 0,
     [string]$AabPath = "",
     [string]$DesktopPath = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+. (Join-Path $PSScriptRoot "lib\version-defaults.ps1")
 
 function Resolve-Version {
     param([string]$ExplicitVersion)
@@ -13,30 +16,45 @@ function Resolve-Version {
         return $ExplicitVersion.TrimStart("v")
     }
 
-    $buildFile = Join-Path $PSScriptRoot "..\app\build.gradle.kts"
-    $versionLine = Select-String -Path $buildFile -Pattern 'versionName\s*=' | Select-Object -First 1
-    # Match the `?: "X.Y.Z"` fallback literal; a bare '"([^"]+)"' would capture
-    # findProperty("VERSION_NAME") and return the literal "VERSION_NAME".
-    if ($null -eq $versionLine -or $versionLine.Line -notmatch '\?:\s*"([^"]+)"') {
-        throw "Could not resolve versionName from app/build.gradle.kts"
-    }
-
-    return $Matches[1]
+    return Resolve-DefaultVersionName -BuildGradleKtsPath (Join-Path $PSScriptRoot "..\app\build.gradle.kts")
 }
 
 function Resolve-VersionCode {
-    $buildFile = Join-Path $PSScriptRoot "..\app\build.gradle.kts"
-    $codeLine = Select-String -Path $buildFile -Pattern 'versionCode\s*=' | Select-Object -First 1
-    if ($null -eq $codeLine) {
-        throw "Could not resolve versionCode from app/build.gradle.kts"
+    # Mirrors the versionCode fallback formula in app/build.gradle.kts —
+    # keep both in sync if it ever changes.
+    param(
+        [string]$ResolvedVersion,
+        [int]$ExplicitVersionCode
+    )
+
+    if ($ExplicitVersionCode -gt 0) {
+        return $ExplicitVersionCode
     }
-    if ($codeLine.Line -match '\?:\s*(\d+)') {
-        return [int]$Matches[1]
+
+    $parts = $ResolvedVersion.Split(".")
+    if ($parts.Length -ne 3) {
+        throw "Version '$ResolvedVersion' is not in X.Y.Z numeric form; cannot derive a versionCode."
     }
-    if ($codeLine.Line -match '=\s*(\d+)') {
-        return [int]$Matches[1]
+    # [0-9] (not \d, which is Unicode-aware and would accept e.g.
+    # Arabic-Indic digits that [long] can't parse) — @(...) forces array
+    # context since Where-Object unwraps a single match to a bare scalar,
+    # and an empty-string match would then be treated as falsy by -or,
+    # silently letting a version like "1..0" through. Minor/patch capped
+    # to 3 digits (0-999) to match the formula's own encoding radix
+    # (*1_000 / *1) — a 4-digit minor or patch would spill into the next
+    # band and collide with, or exceed, an adjacent version's derived
+    # code; major gets one more digit of slack, same as app/build.gradle.kts.
+    $badMajor = @($parts[0] | Where-Object { $_ -notmatch '^[0-9]{1,4}$' })
+    $badMinorOrPatch = @($parts[1, 2] | Where-Object { $_ -notmatch '^[0-9]{1,3}$' })
+    if ($badMajor.Count -gt 0 -or $badMinorOrPatch.Count -gt 0) {
+        throw "Version '$ResolvedVersion' is not in X.Y.Z numeric form (Y and Z each 0-999); cannot derive a versionCode."
     }
-    throw "Could not parse versionCode from line: $($codeLine.Line)"
+    $derived = [long]$parts[0] * 1000000 + [long]$parts[1] * 1000 + [long]$parts[2]
+    # Mirrors app/build.gradle.kts's Play Console ceiling check.
+    if ($derived -lt 1 -or $derived -gt 2100000000) {
+        throw "Derived versionCode $derived for version '$ResolvedVersion' is outside Play Console's valid range (1..2,100,000,000)."
+    }
+    return [int]$derived
 }
 
 function Resolve-DesktopPath {
@@ -112,7 +130,7 @@ function Resolve-ArtifactPath {
 }
 
 $resolvedVersion = Resolve-Version -ExplicitVersion $Version
-$resolvedCode = Resolve-VersionCode
+$resolvedCode = Resolve-VersionCode -ResolvedVersion $resolvedVersion -ExplicitVersionCode $VersionCode
 $desktop = Resolve-DesktopPath -ExplicitDesktopPath $DesktopPath
 
 # Convention (locked in — see RELEASE.md §5):
