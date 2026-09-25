@@ -398,8 +398,7 @@ function start() {
   lines.clear();
   runEl.classList.toggle('can-draw', modeById(mode).draw);
   show('run');
-  resizeCanvas();
-  sim.resize(view.w, view.h);
+  resizeCanvas(); // also sizes the new sim
   enterRunning();
   showHint();
 }
@@ -531,10 +530,12 @@ function setFavicon(remaining) {
   g.beginPath();
   g.roundRect ? g.roundRect(2, 2, 60, 60, 14) : g.rect(2, 2, 60, 60);
   g.fill();
-  // Sand in each bulb (triangles, so fill height ~ sqrt of area share).
+  // Sand in each bulb. Both bulbs are triangles pointing at the neck, so a
+  // region at the neck holding a share `a` of the area is sqrt(a) tall:
+  // the top bulb's sand is that region with a = remaining, and the bottom
+  // bulb's *empty* region is that region with a = remaining.
   g.fillStyle = '#fff';
   const top = Math.sqrt(clamp(remaining, 0, 1));
-  const bot = 1 - Math.sqrt(clamp(1 - remaining, 0, 1));
   if (top > 0.02) {
     const y = 32 - 20 * top;
     const half = 16 * top;
@@ -544,9 +545,9 @@ function setFavicon(remaining) {
     g.lineTo(32, 32);
     g.fill();
   }
-  if (bot < 0.98) {
-    const y = 32 + 20 * bot;
-    const half = 16 * bot;
+  if (top < 0.99) {
+    const y = 32 + 20 * top;
+    const half = 16 * top;
     g.beginPath();
     g.moveTo(32 - half, y);
     g.lineTo(32 + half, y);
@@ -573,16 +574,29 @@ function setFavicon(remaining) {
 // ------------------------------------------------------------- wake lock
 
 let wakeLock = null;
+let wakePending = false;
 let wantAwake = false;
 async function keepAwake(on) {
   wantAwake = on;
   if (!('wakeLock' in navigator)) return;
-  if (on && !wakeLock) {
+  if (on && !wakeLock && !wakePending) {
+    wakePending = true;
     try {
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', () => (wakeLock = null));
-    } catch {
-      wakeLock = null; // denied (e.g. battery saver) — the timer still works
+      const lock = await navigator.wakeLock.request('screen');
+      // Paused or reset while the request was in flight: give it back.
+      if (!wantAwake) {
+        lock.release().catch(() => {});
+        return;
+      }
+      wakeLock = lock;
+      lock.addEventListener('release', () => {
+        if (wakeLock === lock) wakeLock = null;
+      });
+    } catch (err) {
+      // Denied (e.g. battery saver) — the timer still works, the screen may dim.
+      console.info('Wake lock unavailable:', err?.message || err);
+    } finally {
+      wakePending = false;
     }
   } else if (!on && wakeLock) {
     wakeLock.release().catch(() => {});
@@ -714,5 +728,8 @@ setMode(mode, false);
 updateSoundUi();
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.register('sw.js').catch((err) => {
+    // The app still works online; only offline use is lost.
+    console.warn('Offline support unavailable — service worker failed to register:', err);
+  });
 }

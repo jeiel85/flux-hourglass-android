@@ -45,7 +45,8 @@ export class LedSim {
 
     const unlit = new Path2D();
     const lit = new Path2D();
-    const edges = [];
+    // Partially lit (surface) cells, batched by alpha quantised to 1/32.
+    const edges = new Map();
     for (let row = 0; row < ROWS; row++) {
       const y = h - (row + 1) * cellH + offY;
       for (let col = 0; col < cols; col++) {
@@ -54,7 +55,13 @@ export class LedSim {
         const fill = clamp(level - row, 0, 1);
         if (fill <= 0) roundRect(unlit, x, y, dot, dot, rad);
         else if (fill >= 1) roundRect(lit, x, y, dot, dot, rad);
-        else edges.push(x, y, fill);
+        else {
+          const a = clamp((0.06 + fill * 0.89) * pulse, 0.02, 0.95);
+          const key = Math.round(a * 32);
+          let path = edges.get(key);
+          if (!path) edges.set(key, (path = new Path2D()));
+          roundRect(path, x, y, dot, dot, rad);
+        }
       }
     }
 
@@ -64,12 +71,9 @@ export class LedSim {
     ctx.fillStyle = 'rgba(255,255,255,0.95)';
     ctx.fill(lit);
 
-    for (let i = 0; i < edges.length; i += 3) {
-      const a = clamp((0.06 + edges[i + 2] * 0.89) * pulse, 0.02, 0.95);
-      ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
-      const p = new Path2D();
-      roundRect(p, edges[i], edges[i + 1], dot, dot, rad);
-      ctx.fill(p);
+    for (const [key, path] of edges) {
+      ctx.fillStyle = `rgba(255,255,255,${(key / 32).toFixed(3)})`;
+      ctx.fill(path);
     }
   }
 }

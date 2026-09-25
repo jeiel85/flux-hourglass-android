@@ -21,6 +21,7 @@ const t = (key) => (STRINGS[root.lang] || STRINGS.en)[key];
 document.getElementById('lang-toggle').addEventListener('click', () => {
   const next = root.lang === 'ko' ? 'en' : 'ko';
   root.lang = next;
+  placeStream(); // copy re-wraps, which can move the word
   try {
     localStorage.setItem('fh.lang', next);
   } catch {
@@ -119,6 +120,8 @@ function placeStream() {
 }
 heroSurface.onResize = placeStream;
 document.fonts?.ready.then(placeStream);
+// The word can move without the canvas resizing (copy re-wrapping above it).
+new ResizeObserver(placeStream).observe(document.querySelector('.hero-copy'));
 
 const introEnds = performance.now() + (reduceMotion ? 0 : 1300);
 let lastMinuteLeft = 1;
