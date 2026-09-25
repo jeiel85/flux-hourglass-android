@@ -45,12 +45,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return;
+  // Every shared link (?t=…&m=…) is the same page: cache navigations under
+  // their query-less URL so the cache doesn't grow one entry per link.
+  const key = request.mode === 'navigate' ? new URL(request.url).pathname : request;
   event.respondWith(
     fetch(request)
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();
-          caches.open(VERSION).then((cache) => cache.put(request, copy));
+          caches.open(VERSION).then((cache) => cache.put(key, copy));
         }
         return response;
       })
