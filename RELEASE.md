@@ -130,7 +130,9 @@ What's new
 중단합니다. 양식 예시는 `play_store/release_notes/v1.2.0.txt`를 참고하세요.
 
 ### 2.4 CHANGELOG 업데이트
-`CHANGELOG.md` 최상단에 새 버전 섹션을 추가합니다.
+`CHANGELOG.md` 최상단에 새 버전 섹션을 추가합니다. 랜딩 페이지 하단의
+안드로이드 버전 기록 표(`docs/index.html`의 `<details class="versions">`)와
+`README.md`의 Version history 표에도 같은 줄을 추가합니다.
 
 ### 2.5 로컬 릴리즈 빌드 + 데스크톱 export
 환경변수에 키스토어 자격을 넣고 한 줄 스크립트를 실행하면 됩니다.

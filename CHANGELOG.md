@@ -5,6 +5,23 @@ All notable changes are recorded here. New entries go on top.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [Web 1.0.0] — 2026-09-25
+
+The web version and a new landing page. The Android app is unchanged.
+
+### Added
+- **Web app** at [`/app/`](https://jeiel85.github.io/flux-hourglass-android/app/): the four visualizers (Sand, LED, Water, Fire) ported to Canvas 2D with the app's setup, running, paused and finished screens — presets, the HR/MIN/SEC picker (drag, wheel, arrows, keyboard), hold-to-reveal, drag-to-draw walls, sandbox physics sliders, procedural soundscapes and the completion chime (Web Audio), device-tilt gravity (DeviceMotion, ← → on a keyboard), wake lock while running, and a tab icon + title that count down.
+- **Shareable timer links** — `?t=25m&m=fire` loads a duration and material; the setup screen's `SHARE` copies (or natively shares) the current one.
+- **Installable and offline** — web app manifest and a network-first service worker scoped to `/app/`.
+- **Landing page redesign** — the hero is a live one-minute hourglass synced to the visitor's clock, with live previews of all four materials, shareable preset links, and English/Korean.
+- `tests/web/` (Node's built-in test runner) and a Web CI workflow.
+
+### Changed (web port vs. the app)
+- **Tilt settles the sand surface perpendicular to gravity.** The app clamps its slump thresholds at zero and biases landing grains against the tilt, so tipping the phone only ever flattens the heap; the port lets sand flow "uphill" on screen so the surface tilts like a real hourglass.
+- **Drawn walls stop fast grains** with a swept collision test instead of letting them tunnel through, and grains that reach a screen edge under strong tilt slide down it instead of vanishing.
+- **The density slider no longer changes the timer's pace** — each grain's share of the pile is divided by density.
+- Fire flames are drawn as soft additive sprites that taper to a tip; water bubbles rise and pop at the surface.
+
 ## [1.10.0] — 2026-08-10
 
 ### Removed
