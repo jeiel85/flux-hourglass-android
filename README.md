@@ -1,7 +1,9 @@
 # Flux Hourglass
 
-> An ultra-minimalist particle-physics hourglass timer for Android.
-> Pure black-and-white, no network, no analytics, no ads.
+> An ultra-minimalist particle-physics hourglass timer — for Android and the web.
+> Pure black-and-white, no analytics, no ads.
+>
+> **Try it in your browser:** <https://jeiel85.github.io/flux-hourglass-android/app/>
 
 <p align="center">
   <img src="docs/assets/setup.png" alt="Flux Hourglass setup screen" width="280">
@@ -30,6 +32,35 @@
 - **Procedural Soundscapes.** Math-modeled real-time PCM audio synthesis for sand grains, campfire, and waves, utilizing zero-byte resource files.
 - **Interactive Obstacle Drawing.** Drag-to-draw temporary fading barrier lines that deflect sand particles and water splashes dynamically using elastic 2D collision physics.
 - **Four focused visualizer modes.** Includes Sand (particle-physics hourglass), LED (liquid-level dot matrix that tilts like a real surface), Water (sloshing waves, bubbles, splashes), and Fire (campfire that burns down to glowing embers).
+
+## Web version
+
+The landing page and the web app are plain static files in [`docs/`](docs/),
+served by GitHub Pages straight from `main` — no build step, no dependencies.
+
+| Path | What it is |
+|------|------------|
+| [`docs/index.html`](docs/index.html) | Landing page (live hero hourglass, material previews, EN/KO) |
+| [`docs/app/`](docs/app/) | The web app, its manifest and offline service worker |
+| [`docs/js/sim/`](docs/js/sim/) | Canvas ports of the Sand, LED, Water and Fire visualizers |
+| [`docs/js/`](docs/js/) | App/landing controllers, tilt, Web Audio, duration parsing |
+| [`tests/web/`](tests/web/) | Node test-runner tests for the physics and share links |
+
+Timers are shareable links: `app/?t=25m&m=fire` (durations like `90s`,
+`1h30m`, `1:30:00`; materials `sand`, `led`, `water`, `fire`).
+
+```powershell
+# Tests (Node 22+)
+node --test "tests/web/*.test.mjs"
+
+# Local preview: any static server that serves .js as text/javascript
+npx --yes http-server docs -c-1
+```
+
+`docs/assets/og.png` (the share image) is rendered from the real sand
+simulation by [`scripts/web/og.html`](scripts/web/og.html) — the command is in
+that file's header. When the list of app files changes, bump `VERSION` in
+[`docs/app/sw.js`](docs/app/sw.js).
 
 ## Version history
 
@@ -135,7 +166,11 @@ All rights reserved unless an explicit license is added.
 이 저장소에서 새 버전을 만드는 정해진 절차는 [`RELEASE.md`](RELEASE.md)에
 한국어로 정리되어 있습니다.
 
-### 랜딩 페이지
+### 랜딩 페이지 · 웹 버전
 
-[flux-hourglass-android 랜딩 페이지](https://jeiel85.github.io/flux-hourglass-android/) —
-GitHub Pages로 `docs/` 폴더를 그대로 호스팅합니다.
+[랜딩 페이지](https://jeiel85.github.io/flux-hourglass-android/)와
+[웹 앱](https://jeiel85.github.io/flux-hourglass-android/app/)은 GitHub Pages가
+`main` 브랜치의 `docs/` 폴더를 빌드 없이 그대로 호스팅합니다. 웹 앱은 안드로이드
+앱의 네 가지 모드를 Canvas로 옮긴 것이며, `?t=25m&m=fire`처럼 링크로 타이머를
+공유할 수 있고 오프라인에서도 동작합니다. 구조와 테스트 방법은 위의
+[Web version](#web-version) 절을 참고하세요.

@@ -1,0 +1,103 @@
+<!doctype html>
+<!--
+  Renders docs/assets/og.png (1200×630) from the real sand simulation.
+  Serve the repo root over HTTP (ES modules don't load from file://), then:
+
+    chrome --headless=new --hide-scrollbars --window-size=1200,630 \
+      --virtual-time-budget=4000 --screenshot=docs/assets/og.png \
+      http://localhost:5173/scripts/web/og.html
+
+  Deterministic: a fixed seed and a fixed number of simulation steps.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        background: #000;
+        color: #f2f0ec;
+        font-family: "Segoe UI Variable Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-weight: 300;
+        -webkit-font-smoothing: antialiased;
+      }
+      canvas {
+        position: absolute;
+        inset: 0;
+        width: 1200px;
+        height: 630px;
+      }
+      .flux {
+        position: absolute;
+        top: 38px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 15px;
+        letter-spacing: 0.9em;
+        margin-right: -0.9em;
+        color: #a3a09a;
+      }
+      .word {
+        position: absolute;
+        top: 72px;
+        left: 0;
+        right: -0.3em;
+        text-align: center;
+        font-size: 124px;
+        font-weight: 200;
+        line-height: 1;
+        letter-spacing: 0.3em;
+      }
+      .tag {
+        position: absolute;
+        left: 72px;
+        top: 262px;
+        font-size: 50px;
+        font-weight: 200;
+        letter-spacing: -0.01em;
+      }
+      .sub {
+        position: absolute;
+        left: 74px;
+        top: 336px;
+        font-size: 20px;
+        color: #a3a09a;
+        line-height: 1.45;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c" width="2400" height="1260"></canvas>
+    <div class="flux">FLUX</div>
+    <div class="word" id="word">HOURGLASS</div>
+    <div class="tag">Watch time fall.</div>
+    <div class="sub">A particle-physics hourglass timer.<br />Sand, water, fire or LED — in your browser.</div>
+    <script type="module">
+      import { SandSim } from '../../docs/js/sim/sand.js';
+      import { DEFAULT_SETTINGS } from '../../docs/js/sim/util.js';
+
+      const W = 1200;
+      const H = 630;
+      const word = document.getElementById('word').getBoundingClientRect();
+      const sim = new SandSim({ seed: 3, maxFill: 0.34, spawnY: (word.bottom - 12) / H });
+      sim.resize(W, H);
+      const totalMs = 60000;
+      const dt = 1 / 60;
+      const steps = 42 * 60; // 42 s into a one-minute timer
+      for (let i = 1; i <= steps; i++) {
+        const remaining = 1 - (i * dt * 1000) / totalMs;
+        sim.update(dt, { remaining, totalMs, gx: 0, gy: 9.81, settings: DEFAULT_SETTINGS });
+      }
+      const ctx = document.getElementById('c').getContext('2d');
+      ctx.setTransform(2, 0, 0, 2, 0, 0);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      sim.draw(ctx, { settings: DEFAULT_SETTINGS, dpr: 2 });
+    </script>
+  </body>
+</html>
