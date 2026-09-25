@@ -158,7 +158,16 @@ export class SandSim {
         vy[i] = o[3];
       }
 
-      if (px[i] < -8 || px[i] > w + 8 || py[i] < -h * 0.5) {
+      // Side walls: under strong tilt grains hit the edge and slide down it
+      // instead of vanishing off-screen.
+      if (px[i] < 0) {
+        px[i] = 0;
+        vx[i] = -vx[i] * 0.3;
+      } else if (px[i] > w) {
+        px[i] = w;
+        vx[i] = -vx[i] * 0.3;
+      }
+      if (py[i] < -h * 0.5) {
         this.#kill(i);
         continue;
       }

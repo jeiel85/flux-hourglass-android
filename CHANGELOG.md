@@ -18,7 +18,7 @@ The web version and a new landing page. The Android app is unchanged.
 
 ### Changed (web port vs. the app)
 - **Tilt settles the sand surface perpendicular to gravity.** The app clamps its slump thresholds at zero and biases landing grains against the tilt, so tipping the phone only ever flattens the heap; the port lets sand flow "uphill" on screen so the surface tilts like a real hourglass.
-- **Drawn walls stop fast grains** with a swept collision test instead of letting them tunnel through.
+- **Drawn walls stop fast grains** with a swept collision test instead of letting them tunnel through, and grains that reach a screen edge under strong tilt slide down it instead of vanishing.
 - **The density slider no longer changes the timer's pace** — each grain's share of the pile is divided by density.
 - Fire flames are drawn as soft additive sprites that taper to a tip; water bubbles rise and pop at the surface.
 
