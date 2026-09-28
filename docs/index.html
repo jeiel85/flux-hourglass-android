@@ -8,11 +8,15 @@
     <script>
       // Pick the language before first paint so the page never flashes the wrong one.
       (function () {
+        // The old page had a Korean section at #kr; links to it still exist,
+        // so that hash now means "Korean", ahead of any saved choice.
         var saved = null;
         try { saved = localStorage.getItem('fh.lang'); } catch (e) {}
-        var lang = saved === 'ko' || saved === 'en'
-          ? saved
-          : (navigator.language || '').toLowerCase().indexOf('ko') === 0 ? 'ko' : 'en';
+        var lang = location.hash === '#kr'
+          ? 'ko'
+          : saved === 'ko' || saved === 'en'
+            ? saved
+            : (navigator.language || '').toLowerCase().indexOf('ko') === 0 ? 'ko' : 'en';
         document.documentElement.lang = lang;
       })();
     </script>
@@ -296,6 +300,7 @@
             <tr><th scope="col">Version</th><th scope="col">Date</th><th scope="col">Notes</th></tr>
           </thead>
           <tbody>
+            <!-- versions:start — generated from docs/releases/versions.json by scripts/web/versions.mjs -->
             <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.10.0.md">1.10.0</a></td><td>2026-08-10</td><td>Trim 15 modes to 4 (Sand/Water/Fire/LED); LED liquid-level rework, Sand soundscape, Fire gravity setting.</td></tr>
             <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.9.1.md">1.9.1</a></td><td>2026-06-15</td><td>Fix: time picker &amp; START button could disappear on the setup screen.</td></tr>
             <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.9.0.md">1.9.0</a></td><td>2026-06-15</td><td>Swipeable single-row object selector.</td></tr>
@@ -303,11 +308,12 @@
             <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.7.0.md">1.7.0</a></td><td>2026-06-14</td><td>5 premium modes: Magnetic, Aurora, Rain, Black Hole, Electric.</td></tr>
             <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.6.0.md">1.6.0</a></td><td>2026-06-13</td><td>Premium Fire Mode + interactive tilt physics.</td></tr>
             <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.5.0.md">1.5.0</a></td><td>2026-05-28</td><td>Premium Water Mode + spring-damper sloshing, Immersive Mode.</td></tr>
-            <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.4.0.md">1.4.0</a></td><td>2026-05-28</td><td>Snapping gravity rotation &amp; pile rescaling.</td></tr>
+            <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.4.0.md">1.4.0</a></td><td>2026-05-28</td><td>Snapping gravity screen rotation &amp; pile rescaling.</td></tr>
             <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.3.0.md">1.3.0</a></td><td>2026-05-28</td><td>Retro LED Grid Mode &amp; gyro-based pile slumping.</td></tr>
             <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.2.0.md">1.2.0</a></td><td>2026-05-27</td><td>Completion chime + persisted last duration.</td></tr>
             <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.1.0.md">1.1.0</a></td><td>2026-05-27</td><td>Quick presets, pause/resume, keep-screen-on.</td></tr>
             <tr><td><a href="https://github.com/jeiel85/flux-hourglass-android/blob/main/docs/releases/v1.0.0.md">1.0.0</a></td><td>2026-05-27</td><td>Initial release — particle hourglass core.</td></tr>
+            <!-- versions:end -->
           </tbody>
         </table>
       </details>

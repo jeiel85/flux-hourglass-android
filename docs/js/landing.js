@@ -6,6 +6,7 @@ import { ObstacleLines } from './sim/lines.js';
 import { DEFAULT_SETTINGS } from './sim/util.js';
 import { Tilt } from './tilt.js';
 import { formatSpaced, formatTitle } from './time.js';
+import { writeItem, createToast } from './common.js';
 
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const root = document.documentElement;
@@ -22,11 +23,7 @@ document.getElementById('lang-toggle').addEventListener('click', () => {
   const next = root.lang === 'ko' ? 'en' : 'ko';
   root.lang = next;
   placeStream(); // copy re-wraps, which can move the word
-  try {
-    localStorage.setItem('fh.lang', next);
-  } catch {
-    /* not persisted */
-  }
+  writeItem('fh.lang', next); // raw string: the inline <head> script reads it
 });
 
 // ---------------------------------------------------------------- tilt
@@ -242,14 +239,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------------------------------------------------------- copy links
 
-const toastEl = document.getElementById('toast');
-let toastTimer = 0;
-function toast(msg) {
-  toastEl.textContent = msg;
-  toastEl.classList.add('on');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove('on'), 2000);
-}
+const toast = createToast(document.getElementById('toast'), 2000);
 
 document.getElementById('board').addEventListener('click', async (e) => {
   const btn = e.target.closest('.row-copy');

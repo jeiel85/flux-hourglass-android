@@ -130,9 +130,17 @@ What's new
 중단합니다. 양식 예시는 `play_store/release_notes/v1.2.0.txt`를 참고하세요.
 
 ### 2.4 CHANGELOG 업데이트
-`CHANGELOG.md` 최상단에 새 버전 섹션을 추가합니다. 랜딩 페이지 하단의
-안드로이드 버전 기록 표(`docs/index.html`의 `<details class="versions">`)와
-`README.md`의 Version history 표에도 같은 줄을 추가합니다.
+`CHANGELOG.md` 최상단에 새 버전 섹션을 추가합니다. 버전 기록 표는
+[`docs/releases/versions.json`](docs/releases/versions.json) 맨 앞에 한 줄을
+추가한 뒤 생성기로 반영합니다. 랜딩 페이지 하단 표(`docs/index.html`)와
+`README.md`의 Version history 표가 함께 갱신됩니다.
+
+```powershell
+node scripts/web/versions.mjs          # 두 표를 다시 생성
+node scripts/web/versions.mjs --check  # 최신인지 확인만 (Web CI에서도 검사)
+```
+
+표를 직접 손으로 고치면 Web CI의 `tests/web/versions.test.mjs`가 실패합니다.
 
 ### 2.5 로컬 릴리즈 빌드 + 데스크톱 export
 환경변수에 키스토어 자격을 넣고 한 줄 스크립트를 실행하면 됩니다.

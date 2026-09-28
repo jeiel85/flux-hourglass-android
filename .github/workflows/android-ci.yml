@@ -59,6 +59,9 @@ jobs:
     name: Android Emulator App Launch Smoke Test
     runs-on: ubuntu-latest
     needs: test-and-build
+    # The emulator step has hung until GitHub's 6 h job limit. A healthy run
+    # of this job takes ~2 min (the emulator step ~1.5), so fail fast instead.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -89,14 +92,26 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Launch app on Android emulator
+        timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
           arch: x86_64
           profile: pixel_7
-          script: |
-            adb wait-for-device
-            adb install --no-streaming -r app/build/outputs/apk/debug/app-debug.apk
-            adb shell am start -n com.flux.hourglass/com.flux.hourglass.MainActivity
-            sleep 5
-            adb shell pidof com.flux.hourglass || (adb logcat -d -t 200 '*:E'; exit 1)
+          # The action's default is `-gpu swiftshader_indirect` (deprecated
+          # since emulator 36.4.9). With it, 6 of runs 20-36 hung or failed:
+          # the emulator process silently died ~5-30 s after the app started
+          # drawing (#5). Same symptom, fixed by ANGLE over SwiftShader:
+          # https://github.com/omnesis-dev/Omnesis/issues/200
+          emulator-options: -no-window -gpu swangle -no-snapshot -noaudio -no-boot-anim
+          # Bounded adb calls, one retry after an adb transport drop, and
+          # diagnostics on failure; see the script's header.
+          script: bash scripts/ci/smoke-launch.sh
+
+      - name: Upload emulator crash data
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-crash-data
+          path: /tmp/android-runner/emu-crash-*.db
+          if-no-files-found: ignore

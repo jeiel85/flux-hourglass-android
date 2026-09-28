@@ -7,11 +7,15 @@ on:
     paths:
       - 'docs/**'
       - 'tests/web/**'
+      - 'scripts/web/**'
+      - 'README.md'
       - '.github/workflows/web-ci.yml'
   pull_request:
     paths:
       - 'docs/**'
       - 'tests/web/**'
+      - 'scripts/web/**'
+      - 'README.md'
       - '.github/workflows/web-ci.yml'
 
 permissions:

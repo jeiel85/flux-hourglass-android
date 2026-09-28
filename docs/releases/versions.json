@@ -1,0 +1,14 @@
+[
+  { "version": "1.10.0", "date": "2026-08-10", "notes": "Trim 15 modes to 4 (Sand/Water/Fire/LED); LED liquid-level rework, Sand soundscape, Fire gravity setting" },
+  { "version": "1.9.1", "date": "2026-06-15", "notes": "Fix: time picker & START button could disappear on the setup screen" },
+  { "version": "1.9.0", "date": "2026-06-15", "notes": "Swipeable single-row object selector" },
+  { "version": "1.8.0", "date": "2026-06-15", "notes": "Sandbox Settings, Procedural Soundscapes, Interactive obstacle drawing" },
+  { "version": "1.7.0", "date": "2026-06-14", "notes": "5 premium modes: Magnetic, Aurora, Rain, Black Hole, Electric" },
+  { "version": "1.6.0", "date": "2026-06-13", "notes": "Premium Fire Mode + interactive tilt physics" },
+  { "version": "1.5.0", "date": "2026-05-28", "notes": "Premium Water Mode + spring-damper sloshing, Immersive Mode" },
+  { "version": "1.4.0", "date": "2026-05-28", "notes": "Snapping gravity screen rotation & pile rescaling" },
+  { "version": "1.3.0", "date": "2026-05-28", "notes": "Retro LED Grid Mode & gyro-based pile slumping" },
+  { "version": "1.2.0", "date": "2026-05-27", "notes": "Completion chime + persisted last duration" },
+  { "version": "1.1.0", "date": "2026-05-27", "notes": "Quick presets, pause/resume, keep-screen-on" },
+  { "version": "1.0.0", "date": "2026-05-27", "notes": "Initial release — particle hourglass core" }
+]
