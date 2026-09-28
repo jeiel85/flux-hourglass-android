@@ -43,8 +43,8 @@ served by GitHub Pages straight from `main` — no build step, no dependencies.
 | [`docs/index.html`](docs/index.html) | Landing page (live hero hourglass, material previews, EN/KO) |
 | [`docs/app/`](docs/app/) | The web app, its manifest and offline service worker |
 | [`docs/js/sim/`](docs/js/sim/) | Canvas ports of the Sand, LED, Water and Fire visualizers |
-| [`docs/js/`](docs/js/) | App/landing controllers, tilt, Web Audio, duration parsing |
-| [`tests/web/`](tests/web/) | Node test-runner tests for the physics and share links |
+| [`docs/js/`](docs/js/) | App/landing controllers, tilt, Web Audio, duration parsing, shared storage/toast helpers (`common.js`) |
+| [`tests/web/`](tests/web/) | Node test-runner tests for the physics, share links, offline precache list and version tables |
 
 Timers are shareable links: `app/?t=25m&m=fire` (durations like `90s`,
 `1h30m`, `1:30:00`; materials `sand`, `led`, `water`, `fire`).
@@ -59,10 +59,17 @@ npx --yes http-server docs -c-1
 
 `docs/assets/og.png` (the share image) is rendered from the real sand
 simulation by [`scripts/web/og.html`](scripts/web/og.html) — the command is in
-that file's header. When the list of app files changes, bump `VERSION` in
-[`docs/app/sw.js`](docs/app/sw.js).
+that file's header. When the list of app files changes, add it to `SHELL` and
+bump `VERSION` in [`docs/app/sw.js`](docs/app/sw.js) — `tests/web/sw.test.mjs`
+fails if a precached file is missing or an imported module isn't precached.
+
+The Android version-history tables (below, and in the landing page footer) are
+generated from [`docs/releases/versions.json`](docs/releases/versions.json):
+edit that file, then run `node scripts/web/versions.mjs`.
 
 ## Version history
+
+<!-- versions:start — generated from docs/releases/versions.json by scripts/web/versions.mjs -->
 
 | Version | Date | Notes |
 |---------|------|-------|
@@ -73,11 +80,13 @@ that file's header. When the list of app files changes, bump `VERSION` in
 | [1.7.0](docs/releases/v1.7.0.md) | 2026-06-14 | 5 premium modes: Magnetic, Aurora, Rain, Black Hole, Electric |
 | [1.6.0](docs/releases/v1.6.0.md) | 2026-06-13 | Premium Fire Mode + interactive tilt physics |
 | [1.5.0](docs/releases/v1.5.0.md) | 2026-05-28 | Premium Water Mode + spring-damper sloshing, Immersive Mode |
-| [1.4.0](docs/releases/v1.4.0.md) | 2026-05-28 | SNAPPING gravity screen rotation & pile rescaling |
+| [1.4.0](docs/releases/v1.4.0.md) | 2026-05-28 | Snapping gravity screen rotation & pile rescaling |
 | [1.3.0](docs/releases/v1.3.0.md) | 2026-05-28 | Retro LED Grid Mode & gyro-based pile slumping |
 | [1.2.0](docs/releases/v1.2.0.md) | 2026-05-27 | Completion chime + persisted last duration |
 | [1.1.0](docs/releases/v1.1.0.md) | 2026-05-27 | Quick presets, pause/resume, keep-screen-on |
 | [1.0.0](docs/releases/v1.0.0.md) | 2026-05-27 | Initial release — particle hourglass core |
+
+<!-- versions:end -->
 
 See [`CHANGELOG.md`](CHANGELOG.md) for the full log.
 

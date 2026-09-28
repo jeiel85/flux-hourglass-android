@@ -5,6 +5,17 @@ All notable changes are recorded here. New entries go on top.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- **Old `/#kr` links open the landing page in Korean** again. The redesign replaced the Korean section with a language toggle, so those links had been landing on the English (or auto-detected) page.
+- **Android CI smoke test can no longer hang for 6 hours** — the emulator job now times out after 30 minutes (the step after 20).
+
+### Changed
+- The landing page's and README's Android version-history tables are generated from `docs/releases/versions.json` (`node scripts/web/versions.mjs`); Web CI fails if they drift.
+- Guarded `localStorage` and toast helpers now live in one module (`docs/js/common.js`) shared by the app, the landing page and tilt. The offline cache version is bumped to pick it up.
+- New `tests/web/sw.test.mjs` checks that every file the service worker precaches exists and that every module the app imports is precached.
+
 ## [Web 1.0.0] — 2026-09-25
 
 The web version and a new landing page. The Android app is unchanged.

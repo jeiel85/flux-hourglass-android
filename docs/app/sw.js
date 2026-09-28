@@ -5,7 +5,7 @@
 // Cache Storage is per origin, and jeiel85.github.io is shared with every
 // other Pages project, so only ever touch caches with this app's prefix.
 const PREFIX = 'fh-web-';
-const VERSION = `${PREFIX}v1`;
+const VERSION = `${PREFIX}v2`;
 const SHELL = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ const SHELL = [
   '../js/time.js',
   '../js/tilt.js',
   '../js/audio.js',
+  '../js/common.js',
   '../js/sim/index.js',
   '../js/sim/util.js',
   '../js/sim/lines.js',

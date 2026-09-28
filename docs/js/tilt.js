@@ -5,6 +5,8 @@
 // into the current screen orientation. Everything else — or anyone who wants
 // to play — can lean it with the ← / → keys.
 
+import { readItem, writeItem } from './common.js';
+
 const G = 9.81;
 const OFFSET_KEY = 'fh.tiltOffset';
 
@@ -29,12 +31,7 @@ export class Tilt {
     this.keyboard = keyboard;
     this.keys = { left: false, right: false };
     this.manual = 0;
-    this.offsetX = 0;
-    try {
-      this.offsetX = parseFloat(localStorage.getItem(OFFSET_KEY)) || 0;
-    } catch {
-      /* storage blocked: keep 0 */
-    }
+    this.offsetX = parseFloat(readItem(OFFSET_KEY)) || 0;
     this.onMotion = this.onMotion.bind(this);
     this.onKey = this.onKey.bind(this);
   }
@@ -113,10 +110,6 @@ export class Tilt {
   /** Treat the current sideways lean as level (for phones on a tilted stand). */
   calibrate() {
     this.offsetX = this.sensorX;
-    try {
-      localStorage.setItem(OFFSET_KEY, String(this.offsetX));
-    } catch {
-      /* not persisted; still applies this session */
-    }
+    writeItem(OFFSET_KEY, String(this.offsetX)); // not persisted if blocked; still applies this session
   }
 }

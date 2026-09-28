@@ -7,6 +7,7 @@ import { ObstacleLines } from './sim/lines.js';
 import { DEFAULT_SETTINGS, clamp } from './sim/util.js';
 import { Tilt } from './tilt.js';
 import { Sound } from './audio.js';
+import { store, createToast } from './common.js';
 import {
   parseShareParams,
   buildShareUrl,
@@ -27,24 +28,6 @@ function capture(el, pointerId) {
     /* ignore */
   }
 }
-
-const store = {
-  get(key, fallback) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw == null ? fallback : JSON.parse(raw);
-    } catch {
-      return fallback;
-    }
-  },
-  set(key, value) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      /* private mode / storage blocked: settings just won't persist */
-    }
-  },
-};
 
 const KEY_LAST = 'fh.last';
 const KEY_SETTINGS = 'fh.settings';
@@ -611,14 +594,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ----------------------------------------------------------------- share
 
-const toastEl = $('toast');
-let toastTimer = 0;
-function toast(msg) {
-  toastEl.textContent = msg;
-  toastEl.classList.add('on');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove('on'), 2200);
-}
+const toast = createToast($('toast'), 2200);
 
 async function share() {
   const secs = totalPickSeconds();

@@ -59,6 +59,9 @@ jobs:
     name: Android Emulator App Launch Smoke Test
     runs-on: ubuntu-latest
     needs: test-and-build
+    # The emulator step has hung until GitHub's 6 h job limit. A healthy run
+    # of this job takes ~2 min (the emulator step ~1.5), so fail fast instead.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -89,6 +92,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Launch app on Android emulator
+        timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
