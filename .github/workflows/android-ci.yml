@@ -98,6 +98,20 @@ jobs:
           api-level: 34
           arch: x86_64
           profile: pixel_7
+          # The action's default is `-gpu swiftshader_indirect` (deprecated
+          # since emulator 36.4.9). With it, 6 of runs 20-36 hung or failed:
+          # the emulator process silently died ~5-30 s after the app started
+          # drawing (#5). Same symptom, fixed by ANGLE over SwiftShader:
+          # https://github.com/omnesis-dev/Omnesis/issues/200
+          emulator-options: -no-window -gpu swangle -no-snapshot -noaudio -no-boot-anim
           # Bounded adb calls, one retry after an adb transport drop, and
           # diagnostics on failure; see the script's header.
           script: bash scripts/ci/smoke-launch.sh
+
+      - name: Upload emulator crash data
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-crash-data
+          path: /tmp/android-runner/emu-crash-*.db
+          if-no-files-found: ignore

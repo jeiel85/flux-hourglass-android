@@ -30,6 +30,9 @@ diagnose() {
   adbt 10 devices -l || true
   pgrep -af qemu-system || echo "emulator process is not running"
   adbt 30 logcat -d -t 300 '*:E' || echo "logcat unavailable (device unreachable)"
+  # The emulator has died without a word on stdout; the kernel log shows an
+  # OOM kill or a KVM fault if that was the cause.
+  sudo -n dmesg 2>/dev/null | tail -n 40 || true
   echo "::endgroup::"
 }
 
