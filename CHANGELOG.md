@@ -9,7 +9,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - **Old `/#kr` links open the landing page in Korean** again. The redesign replaced the Korean section with a language toggle, so those links had been landing on the English (or auto-detected) page.
-- **Android CI smoke test can no longer hang for 6 hours** — the emulator job now times out after 30 minutes (the step after 20).
+- **Android CI smoke test can no longer hang for 6 hours.** The hangs came from the failure branch: after the emulator's adb connection closed, `adb logcat` waited for the device forever. The launch check is now `scripts/ci/smoke-launch.sh`: every adb call has a time limit, a dropped connection gets one retry after an adb-server restart, and a failure prints whether the app or the emulator died. The job is also capped at 30 minutes (the step at 20).
 
 ### Changed
 - The landing page's and README's Android version-history tables are generated from `docs/releases/versions.json` (`node scripts/web/versions.mjs`); Web CI fails if they drift.
