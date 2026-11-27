@@ -35,8 +35,9 @@ jobs:
       PACKAGE: com.flux.hourglass
       # 올릴 트랙(공백 구분). 첫 트랙에 AAB를 올리고, 나머지에는 같은 versionCode를 붙입니다.
       TRACKS: alpha
-      # Play 업로드 키 인증서 SHA-256. 키스토어가 이와 다르면 빌드 전에 멈춥니다.
-      UPLOAD_CERT_SHA256: ''
+      # Play 업로드 키 인증서 SHA-256(.keystore/flux-hourglass-upload.jks — GitHub Release용 RELEASE_* 키와 다른 키).
+      # 키스토어가 이와 다르면 빌드 전에 멈춥니다.
+      UPLOAD_CERT_SHA256: '7B:59:DD:23:1F:3C:D7:86:75:EC:25:B2:D9:58:99:C1:50:1A:B7:69:70:34:7B:2E:39:1C:C9:49:80:9D:BE:1B'
       KEYSTORE_FILE: ${{ github.workspace }}/.keystore/play-upload.jks
     steps:
       - uses: actions/checkout@v4
