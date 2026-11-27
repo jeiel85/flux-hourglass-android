@@ -19,6 +19,7 @@ local.properties
 debug.keystore
 my-upload-key.jks
 release.keystore
+.keystore/
 
 # Antigravity CLI and Gemini metadata
 .antigravitycli/

@@ -206,6 +206,16 @@ Actions 화면에서 `Play release`를 손으로 돌릴 수도 있습니다. `ve
 있습니다: `PLAY_UPLOAD_KEYSTORE_B64`, `PLAY_UPLOAD_STORE_PASSWORD`,
 `PLAY_UPLOAD_KEY_ALIAS`, `PLAY_UPLOAD_KEY_PASSWORD`, `PLAY_SERVICE_ACCOUNT_JSON`
 (서비스 계정 `play-publisher@ai-usage-play-publisher.iam.gserviceaccount.com`).
+**Play 업로드 키는 GitHub Release 키와 다릅니다**(채널별 키 분리). Play 전용 키는
+`.keystore/flux-hourglass-play-upload.jks`(PKCS12, alias `upload`, SHA-256
+`F3:EC:5D:99:…:78:C3:7F:3B`)이고, 비밀번호는 같은 폴더의
+`flux-hourglass-play-upload.properties`에만 있습니다(둘 다 gitignore, 드라이브
+`모바일 앱 개발lux-hourglass-android\릴리즈 키스토어\`에 백업). 2026-11-28에
+이전 업로드 키 비밀번호를 잃어 이 키로 업로드 키 재설정을 요청했습니다.
+`.keystore/flux-hourglass-upload.jks`(7B:59:…)는 비밀번호가 없어 쓸 수 없는 이전 키입니다.
+서명이 다르므로 GitHub Release APK와 Play 설치본은 서로 덮어 설치할 수 없습니다
+(채널을 바꾸려면 지우고 다시 설치).
+
 `tools/play-publish.ps1`은 전역 스킬 `play-publish`의 복사본이라 고칠 때 함께 맞춥니다.
 
 로컬 `scripts/build_release.ps1`이 `바탕화면\Build\`에 내보내는 AAB·노트는 확인용입니다.
