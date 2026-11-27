@@ -186,20 +186,30 @@ git push origin main vX.Y.Z
 워크플로우는 GitHub Secrets로 다시 한 번 서명된 APK + AAB를 만들고
 `docs/releases/vX.Y.Z.md`를 본문으로 GitHub Release를 게시합니다.
 
-## 3. Play Console 업로드
-`바탕화면\Build\` 폴더에 떨어진 두 파일만 사용합니다.
+## 3. Play Console 업로드 (CI 자동)
+2.6단계에서 `vX.Y.Z` 태그를 푸시하면 `.github/workflows/play-release.yml`이
+`release.yml`과 따로 돌아 Play 업로드를 맡습니다. **같은 버전을 Play Console에
+손으로 다시 올리지 않습니다**(같은 versionCode는 두 번 올라가지 않아 실패합니다).
 
-- `flux-hourglass-v{ver}-vc{code}.aab` — Play Console Internal/Production
-  트랙에 업로드.
-- `flux-hourglass-v{ver}-vc{code}-release-notes.txt` — "이번 버전의 새로운
-  기능 / What's new in this release" 입력란에 **파일 내용 전체를 그대로**
-  붙여넣습니다. Play Console이 `<ko-KR>` / `<en-US>` 블록을 자동 인식해 각
-  언어별 노트로 분리합니다.
+1. GitHub 환경 `play`의 승인 대기 — Actions 화면에서 jeiel85가 직접 승인합니다.
+2. 키스토어 인증서 SHA-256을 워크플로에 고정한 Play 업로드 키 지문과 비교(다르면 중단).
+3. `./gradlew test` → `bundleRelease -PVERSION_NAME=X.Y.Z`.
+4. `play_store/release_notes/vX.Y.Z.txt`를 `<ko-KR>`·`<en-US>` 블록별로 나눔
+   (언어당 500자를 넘으면 업로드 스크립트가 멈춥니다).
+5. `tools/play-publish.ps1`로 `-ShowTracks` → 트랙 `alpha`에 업로드 → `-ShowTracks`.
+   트랙을 늘리려면 워크플로의 `TRACKS`에 공백으로 덧붙입니다(첫 트랙에 AAB, 나머지는 같은 versionCode를 붙임).
 
-사이드로드용 APK는 `app/build/outputs/apk/release/app-release.apk` 또는 태그
-푸시 후 GitHub Release 페이지에서 받습니다. **바탕화면(`Build\` 하위 포함)에
-APK가 보이면 잘못된 상태입니다 — 다음 export 실행 시 자동으로 휴지통으로
-보내집니다.**
+Actions 화면에서 `Play release`를 손으로 돌릴 수도 있습니다. `version`에
+`X.Y.Z`, `dry_run`을 켜면 빌드·서명 확인·트랙 조회까지만 하고 올리지 않습니다.
+
+비밀값은 저장소 Secrets(`RELEASE_*`, GitHub Release용)와 별도로 환경 `play`에만
+있습니다: `PLAY_UPLOAD_KEYSTORE_B64`, `PLAY_UPLOAD_STORE_PASSWORD`,
+`PLAY_UPLOAD_KEY_ALIAS`, `PLAY_UPLOAD_KEY_PASSWORD`, `PLAY_SERVICE_ACCOUNT_JSON`
+(서비스 계정 `play-publisher@ai-usage-play-publisher.iam.gserviceaccount.com`).
+`tools/play-publish.ps1`은 전역 스킬 `play-publish`의 복사본이라 고칠 때 함께 맞춥니다.
+
+로컬 `scripts/build_release.ps1`이 `바탕화면\Build\`에 내보내는 AAB·노트는 확인용입니다.
+CI가 실패해 손으로 올려야 할 때만 그 두 파일을 쓰고, 그 경우 같은 버전으로 CI를 다시 돌리지 않습니다.
 
 ## 4. 트러블슈팅
 
