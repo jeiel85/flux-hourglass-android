@@ -210,7 +210,7 @@ Actions 화면에서 `Play release`를 손으로 돌릴 수도 있습니다. `ve
 `.keystore/flux-hourglass-play-upload.jks`(PKCS12, alias `upload`, SHA-256
 `F3:EC:5D:99:…:78:C3:7F:3B`)이고, 비밀번호는 같은 폴더의
 `flux-hourglass-play-upload.properties`에만 있습니다(둘 다 gitignore, 드라이브
-`모바일 앱 개발lux-hourglass-android\릴리즈 키스토어\`에 백업).
+`모바일 앱 개발\flux-hourglass-android\릴리즈 키스토어\`에 백업).
 Play 업로드 키는 원래 GitHub Release 키(`RELEASE_*`, `B6:84:…`)와 같았고, 2026-11-28에
 이 Play 전용 키로 업로드 키 재설정을 요청했습니다(2026-11-30 00:57부터 유효).
 `.keystore/flux-hourglass-upload.jks`(`7B:59:…`)는 비밀번호가 남아 있지 않고 Play·GitHub
