@@ -125,17 +125,18 @@ $env:KEY_PASSWORD = "***"
 .\scripts\build_release.ps1 -Version 1.2.0
 ```
 
-This runs tests, produces signed APK + AAB, and copies
-`flux-hourglass-v{ver}-vc{code}.{apk,aab}` to the desktop ready for Play
-Console upload.
+This runs tests, produces signed APK + AAB, and copies the
+AAB + release notes to `Desktop\Build\` for inspection. Play upload itself is
+done by `play-release.yml` when the tag is pushed.
 
 ## CI
 
 - [`.github/workflows/android-ci.yml`](.github/workflows/android-ci.yml) — unit tests + `assembleDebug` on every push/PR.
 - [`.github/workflows/release.yml`](.github/workflows/release.yml) — signed APK + AAB build, GitHub Release published from `docs/releases/vX.Y.Z.md` when a `vX.Y.Z` tag is pushed.
 
-Both expect the release keystore base64-encoded in the
-`RELEASE_KEYSTORE_BASE64` secret plus the three password secrets.
+- [`.github/workflows/play-release.yml`](.github/workflows/play-release.yml) — on the same `vX.Y.Z` tag, builds the Play AAB, checks it is signed with the pinned Play upload key, and uploads it to the Play `alpha` track with the notes from `play_store/release_notes/vX.Y.Z.txt`. Runs in the `play` environment (approval by jeiel85, `main`/`v*` only). Can also be started by hand with `dry_run` (build + signature check + track listing, no upload).
+
+`release.yml` only publishes the GitHub Release and `play-release.yml` only uploads to Play, so one tag never uploads the same build twice. Do not also upload that version to Play Console by hand. `release.yml` uses the repository secrets `RELEASE_*`; `play-release.yml` uses the `play` environment secrets `PLAY_UPLOAD_KEYSTORE_B64`, `PLAY_UPLOAD_STORE_PASSWORD`, `PLAY_UPLOAD_KEY_ALIAS`, `PLAY_UPLOAD_KEY_PASSWORD` and `PLAY_SERVICE_ACCOUNT_JSON`. See [`RELEASE.md`](RELEASE.md) §3.
 
 ## Permissions
 
